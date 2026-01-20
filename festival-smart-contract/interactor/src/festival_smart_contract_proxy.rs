@@ -71,3 +71,262 @@ where
             .original_result()
     }
 }
+
+#[rustfmt::skip]
+impl<Env, From, To, Gas> FestivalSmartContractProxyMethods<Env, From, To, Gas>
+where
+    Env: TxEnv,
+    Env::Api: VMApi,
+    From: TxFrom<Env>,
+    To: TxTo<Env>,
+    Gas: TxGas<Env>,
+{
+    pub fn add_festival<
+        Arg0: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg1: ProxyArg<u64>,
+        Arg2: ProxyArg<u64>,
+        Arg3: ProxyArg<u64>,
+        Arg4: ProxyArg<u8>,
+        Arg5: ProxyArg<u8>,
+    >(
+        self,
+        name: Arg0,
+        start_time: Arg1,
+        end_time: Arg2,
+        max_tickets: Arg3,
+        tax_normal: Arg4,
+        tax_sold_out: Arg5,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("addFestival")
+            .argument(&name)
+            .argument(&start_time)
+            .argument(&end_time)
+            .argument(&max_tickets)
+            .argument(&tax_normal)
+            .argument(&tax_sold_out)
+            .original_result()
+    }
+
+    pub fn add_event<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg2: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg3: ProxyArg<u64>,
+        Arg4: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+        name: Arg1,
+        location: Arg2,
+        start_time: Arg3,
+        end_time: Arg4,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("addEvent")
+            .argument(&festival_id)
+            .argument(&name)
+            .argument(&location)
+            .argument(&start_time)
+            .argument(&end_time)
+            .original_result()
+    }
+
+    pub fn add_ticket_price<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg2: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg3: ProxyArg<BigUint<Env::Api>>,
+    >(
+        self,
+        festival_id: Arg0,
+        name: Arg1,
+        phase: Arg2,
+        price: Arg3,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("addTicketPrice")
+            .argument(&festival_id)
+            .argument(&name)
+            .argument(&phase)
+            .argument(&price)
+            .original_result()
+    }
+
+    pub fn add_flash_event<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg2: ProxyArg<u64>,
+        Arg3: ProxyArg<u64>,
+        Arg4: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+        name: Arg1,
+        start_time: Arg2,
+        end_time: Arg3,
+        bonus_points: Arg4,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("addFlashEvent")
+            .argument(&festival_id)
+            .argument(&name)
+            .argument(&start_time)
+            .argument(&end_time)
+            .argument(&bonus_points)
+            .original_result()
+    }
+
+    pub fn set_ticket_token_identifier<
+        Arg0: ProxyArg<TokenIdentifier<Env::Api>>,
+    >(
+        self,
+        token_identifier: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("setTicketTokenIdentifier")
+            .argument(&token_identifier)
+            .original_result()
+    }
+
+    pub fn buy_ticket<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<ManagedBuffer<Env::Api>>,
+    >(
+        self,
+        festival_id: Arg0,
+        ticket_price_name: Arg1,
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
+        self.wrapped_tx
+            .raw_call("buyTicket")
+            .argument(&festival_id)
+            .argument(&ticket_price_name)
+            .original_result()
+    }
+
+    pub fn create_participant<
+        Arg0: ProxyArg<ManagedBuffer<Env::Api>>,
+    >(
+        self,
+        username: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("createParticipant")
+            .argument(&username)
+            .original_result()
+    }
+
+    pub fn check_in<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("checkIn")
+            .argument(&festival_id)
+            .original_result()
+    }
+
+    pub fn check_out<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("checkOut")
+            .argument(&festival_id)
+            .original_result()
+    }
+
+    pub fn claim_flash_event_points<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<usize>,
+    >(
+        self,
+        festival_id: Arg0,
+        flash_event_index: Arg1,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("claimFlashEventPoints")
+            .argument(&festival_id)
+            .argument(&flash_event_index)
+            .original_result()
+    }
+
+    pub fn put_ticket_for_sale<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<BigUint<Env::Api>>,
+    >(
+        self,
+        festival_id: Arg0,
+        price: Arg1,
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
+        self.wrapped_tx
+            .raw_call("putTicketForSale")
+            .argument(&festival_id)
+            .argument(&price)
+            .original_result()
+    }
+
+    pub fn buy_resale_ticket<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        ticket_nonce: Arg0,
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
+        self.wrapped_tx
+            .raw_call("buyResaleTicket")
+            .argument(&ticket_nonce)
+            .original_result()
+    }
+
+    pub fn get_festival_data<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, (ManagedBuffer<Env::Api>, u64, u64, u64, u64, u64)> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getFestivalData")
+            .argument(&id)
+            .original_result()
+    }
+
+    pub fn get_ticket_prices_view<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (ManagedBuffer<Env::Api>, ManagedBuffer<Env::Api>, BigUint<Env::Api>)>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getTicketPrices")
+            .argument(&festival_id)
+            .original_result()
+    }
+
+    pub fn get_events_view<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (ManagedBuffer<Env::Api>, ManagedBuffer<Env::Api>, u64, u64)>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getEvents")
+            .argument(&festival_id)
+            .original_result()
+    }
+}

@@ -1,0 +1,52 @@
+Technical Documentation for the Festival Smart Contract
+
+This document provides instructions for frontend developers and the contract owner on how to interact with the Festival Smart Contract.
+
+## For Frontend Developers
+
+### Interacting with the Smart Contract
+
+You can interact with the smart contract by calling its view functions to retrieve data and by calling its endpoints to perform actions.
+
+### Data Fetching through Events
+
+The MultiversX API allows you to subscribe to events emitted by the smart contract. This is the recommended way to get real-time updates and to build a history of all the interactions with the contract.
+
+The following events are emitted by the smart contract:
+
+*   `ticketBought(buyer: Address, festival_id: u64, ticket_nonce: u64)`
+*   `participantCreated(address: Address, username: String)`
+
+By subscribing to these events, you can build a complete and real-time picture of the state of the festival.
+
+### View Functions (for initial data loading)
+
+*   `getFestivalData(festival_id: u64)`: Returns information about a festival (name, start, end, max_tickets, sold_tickets, inside).
+*   `getEventsView(festival_id: u64)`: Returns the events of a festival.
+*   `getTicketPricesView(festival_id: u64)`: Returns the ticket prices of a festival.
+
+### Public Endpoints
+
+*   `buyTicket(festival_id: u64, ticket_price_name: String)`: Payable endpoint to buy a ticket.
+*   `createParticipant(username: String)`: Creates a participant profile.
+*   `checkIn(festival_id: u64)`: Checks in a user to a festival.
+*   `checkOut(festival_id: u64)`: Checks out a user from a festival.
+*   `claimFlashEventPoints(festival_id: u64, flash_event_index: u64)`: Claims points for a flash event.
+*   `putTicketForSale(festival_id: u64, price: BigUint)`: Puts a ticket up for sale. This is a payable endpoint where the payment is the ticket NFT itself.
+*   `buyResaleTicket(ticket_nonce: u64)`: Payable endpoint to buy a ticket from another user.
+
+## For the Owner
+
+As the owner of the contract, you can call the following endpoints to manage the festivals:
+
+*   `addFestival(name: String, start_time: u64, end_time: u64, max_tickets: u64, tax_normal: u8, tax_sold_out: u8)`: Creates a new festival.
+*   `addEvent(festival_id: u64, name: String, location: String, start_time: u64, end_time: u64)`: Adds a new event to a festival.
+*   `addTicketPrice(festival_id: u64, name: String, phase: String, price: BigUint)`: Adds a new ticket price for a festival.
+*   `addFlashEvent(festival_id: u64, name: String, start_time: u64, end_time: u64, bonus_points: u64)`: Adds a new flash event to a festival.
+*   `setTicketTokenIdentifier(token_identifier: TokenIdentifier)`: Sets the token identifier for the ticket NFTs. This needs to be an NFT collection that you own.
+
+## Data Persistence and History
+
+The blockchain is immutable, which means that all transactions are permanently recorded. When the owner adds an event, this is a transaction that is stored on the blockchain forever.
+
+This smart contract does not currently have a feature to "cancel" or "remove" an event in a way that erases it. If an event is cancelled in the real world, the recommended way to handle this is for the owner to communicate this to the users through other channels (e.g. social media, website).

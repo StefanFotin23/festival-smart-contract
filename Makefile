@@ -11,7 +11,7 @@ WALLET = "/mnt/c/Users/andre/Desktop/BPDA/wallet.pem"
 PROXY = "https://devnet-gateway.multiversx.com"
 
 # Smart Contract Address (replace with your deployed contract address)
-SC_ADDRESS = "erd1qqqqqqqqqqqqqpgqwslx6ltkr3z28nn0wjn0evnv7qc67ps5n2js5usuen"
+SC_ADDRESS = "erd1qqqqqqqqqqqqqpgq7kpf8d4eyy6umdgeug8la0ss64uxeg4cn2jsuxvsq2"
 
 # ----------------------------
 # Build

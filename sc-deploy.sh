@@ -24,4 +24,11 @@ cd festival-smart-contract
 cp output/festival_smart_contract_proxy.rs interactor/src/proxy.rs
 cd interactor
 sc-meta all snippets --overwrite
+
+# ============================================================
+# [FIX] Automatically boost gas limit from 30M to 100M
+# This prevents the "insufficient gas" error
+# ============================================================
+sed -i 's/30_000_000u64/100_000_000u64/g' src/*.rs
+
 cargo run deploy
