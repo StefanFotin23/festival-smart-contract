@@ -1,0 +1,4 @@
+
+
+[[proxy]]
+path = "interactor/src/festival_smart_contract_proxy.rs"

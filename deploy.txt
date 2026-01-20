@@ -1,0 +1,57 @@
+DEBUG    cli.contracts: deploy                                                                                                                                                        cli_contracts.py:341
+DEBUG    proxy_network_provider: GET https://devnet-gateway.multiversx.com/network/config                                                                                    proxy_network_provider.py:391
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "GET /network/config HTTP/1.1" 200 None                                                                   connectionpool.py:544
+DEBUG    proxy_network_provider: GET https://devnet-gateway.multiversx.com/address/erd1wq75j9rg92seuyaeu7jwxxdj0qqnv3qrej2e5272hnk5pxz7n2jstc3zx8/guardian-data              proxy_network_provider.py:391
+DEBUG    proxy_network_provider: GET https://devnet-gateway.multiversx.com/address/erd1wq75j9rg92seuyaeu7jwxxdj0qqnv3qrej2e5272hnk5pxz7n2jstc3zx8                            proxy_network_provider.py:391
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "GET /address/erd1wq75j9rg92seuyaeu7jwxxdj0qqnv3qrej2e5272hnk5pxz7n2jstc3zx8 HTTP/1.1" 200 None           connectionpool.py:544
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "GET /address/erd1wq75j9rg92seuyaeu7jwxxdj0qqnv3qrej2e5272hnk5pxz7n2jstc3zx8/guardian-data HTTP/1.1" 200  connectionpool.py:544
+         None                                                                                                                                                                                             
+DEBUG    proxy_network_provider: GET https://devnet-gateway.multiversx.com/network/config                                                                                    proxy_network_provider.py:391
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "GET /network/config HTTP/1.1" 200 None                                                                   connectionpool.py:544
+DEBUG    proxy_network_provider: GET https://devnet-gateway.multiversx.com/network/config                                                                                    proxy_network_provider.py:391
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "GET /network/config HTTP/1.1" 200 None                                                                   connectionpool.py:544
+DEBUG    proxy_network_provider: GET https://devnet-gateway.multiversx.com//address/erd1wq75j9rg92seuyaeu7jwxxdj0qqnv3qrej2e5272hnk5pxz7n2jstc3zx8/guardian-data             proxy_network_provider.py:391
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "GET /address/erd1wq75j9rg92seuyaeu7jwxxdj0qqnv3qrej2e5272hnk5pxz7n2jstc3zx8/guardian-data HTTP/1.1" 200  connectionpool.py:544
+         None                                                                                                                                                                                             
+DEBUG    proxy_network_provider: GET https://devnet-gateway.multiversx.com/network/config                                                                                    proxy_network_provider.py:391
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "GET /network/config HTTP/1.1" 200 None                                                                   connectionpool.py:544
+DEBUG    proxy_network_provider: POST https://devnet-gateway.multiversx.com/transaction/cost                                                                                 proxy_network_provider.py:418
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "POST /transaction/cost HTTP/1.1" 200 None                                                                connectionpool.py:544
+INFO     cli.contracts: Contract address: erd1qqqqqqqqqqqqqpgqwslx6ltkr3z28nn0wjn0evnv7qc67ps5n2js5usuen                                                                              cli_contracts.py:379
+INFO     utils: View this contract address in the MultiversX Explorer: https://devnet-explorer.multiversx.com/accounts/erd1qqqqqqqqqqqqqpgqwslx6ltkr3z28nn0wjn0evnv7qc67ps5n2js5usuen         utils.py:154
+DEBUG    proxy_network_provider: POST https://devnet-gateway.multiversx.com/transaction/send                                                                                 proxy_network_provider.py:418
+DEBUG    urllib3.connectionpool: Starting new HTTPS connection (1): devnet-gateway.multiversx.com:443                                                                               connectionpool.py:1049
+DEBUG    urllib3.connectionpool: https://devnet-gateway.multiversx.com:443 "POST /transaction/send HTTP/1.1" 200 None                                                                connectionpool.py:544
+INFO     utils: View this transaction in the MultiversX Explorer: https://devnet-explorer.multiversx.com/transactions/28d4eec02e378b77a45f2b22c395d20ce009b611d45209c2467dc23011229858        utils.py:154
+{
+    "emittedTransaction": {
+        "nonce": 101,
+        "value": "0",
+        "receiver": "erd1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq6gq4hu",
+        "sender": "erd1wq75j9rg92seuyaeu7jwxxdj0qqnv3qrej2e5272hnk5pxz7n2jstc3zx8",
+        "senderUsername": "",
+        "receiverUsername": "",
+        "gasPrice": 1000000000,
+        "gasLimit": 1172221,
+        "data": "MDA2MTczNmQwMTAwMDAwMDAxMGQwMzYwMDAwMDYwMDAwMTdmNjAwMjdmN2YwMDAyM2UwMzAzNjU2ZTc2MGY2NzY1NzQ0ZTc1NmQ0MTcyNjc3NTZkNjU2ZTc0NzMwMDAxMDM2NTZlNzYwYjczNjk2NzZlNjE2YzQ1NzI3MjZmNzIwMDAyMDM2NTZlNzYwZTYzNjg2NTYzNmI0ZTZmNTA2MTc5NmQ2NTZlNzQwMDAwMDMwMzAyMDAwMDA1MDMwMTAwMDMwNjBmMDI3ZjAwNDE5OTgwMDgwYjdmMDA0MWEwODAwODBiMDc0MTA2MDY2ZDY1NmQ2ZjcyNzkwMjAwMDg2MzYxNmM2YzQyNjE2MzZiMDAwMzA0Njk2ZTY5NzQwMDA0MDc3NTcwNjc3MjYxNjQ2NTAwMDQwYTVmNWY2NDYxNzQ2MTVmNjU2ZTY0MDMwMDBiNWY1ZjY4NjU2MTcwNWY2MjYxNzM2NTAzMDEwYzAxMDEwYTE3MDIwMjAwMGIxMjAwMTAwMjEwMDAwNDQwNDE4MDgwMDg0MTE5MTAwMTAwMGIwYjBiMjEwMTAwNDE4MDgwMDgwYjE5Nzc3MjZmNmU2NzIwNmU3NTZkNjI2NTcyMjA2ZjY2MjA2MTcyNjc3NTZkNjU2ZTc0NzNAMDUwMEAwNTAw",
+        "chainID": "D",
+        "version": 2,
+        "options": 0,
+        "guardian": "",
+        "signature": "8ba27991e3f022ddb82d1e0435bfb1bebf38f2eb41c473866e456fcab4585acbc8ea38c9a9485249aa345e839b99963802b1570aa5d2947ad61922267eea780a",
+        "guardianSignature": "",
+        "relayer": "",
+        "relayerSignature": ""
+    },
+    "emittedTransactionData": "0061736d01000000010d036000006000017f60027f7f00023e0303656e760f6765744e756d417267756d656e7473000103656e760b7369676e616c4572726f72000203656e760e636865636b4e6f5061796d656e74000003030200000503010003060f027f00419980080b7f0041a080080b074106066d656d6f727902000863616c6c4261636b000304696e69740004077570677261646500040a5f5f646174615f656e6403000b5f5f686561705f6261736503010c01010a170202000b12001002100004404180800841191001000b0b0b210100418080080b1977726f6e67206e756d626572206f6620617267756d656e7473@0500@0500",
+    "emittedTransactionHash": "28d4eec02e378b77a45f2b22c395d20ce009b611d45209c2467dc23011229858",
+    "contractAddress": "erd1qqqqqqqqqqqqqpgqwslx6ltkr3z28nn0wjn0evnv7qc67ps5n2js5usuen"
+}

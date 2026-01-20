@@ -1,0 +1,8 @@
+# Compiled smart contract output
+festival-smart-contract/output/
+
+# Generated interactor proxy
+festival-smart-contract/interactor/src/proxy.rs
+
+# Rust build artifacts
+festival-smart-contract/target/
