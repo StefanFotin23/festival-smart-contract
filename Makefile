@@ -25,7 +25,7 @@ deploy:
 	./sc-deploy.sh
 
 upgrade:
-	./sc-upgrade.sh
+	export SC_ADDRESS=$(SC_ADDRESS) && ./sc-upgrade.sh
 
 # ----------------------------
 # Owner Interactions

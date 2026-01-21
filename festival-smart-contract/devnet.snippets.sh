@@ -11,12 +11,10 @@ WASM_PATH="output/festival-smart-contract.wasm"
   }
 
   upgradeSC() {
-      mxpy --verbose contract upgrade \
-          --project=${WASM_PATH} \
+      mxpy --verbose contract upgrade ${SC_ADDRESS} \
+          --bytecode=${WASM_PATH} \
           --pem=${WALLET_PEM} \
           --proxy=${PROXY} \
-          --recall-nonce \
-          --gas-limit=60000000 \
-          --metadata-not-upgradable \
+          --gas-limit=100000000 \
           --send > ../upgrade.txt || return
   }
