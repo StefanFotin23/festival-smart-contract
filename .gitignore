@@ -6,3 +6,5 @@ festival-smart-contract/interactor/src/proxy.rs
 
 # Rust build artifacts
 festival-smart-contract/target/
+
+frontend/node_modules/

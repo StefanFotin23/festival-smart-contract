@@ -164,14 +164,21 @@ create-participant:
 
 # Usage: make check-in NONCE=1
 check-in:
-	@echo "Creating Check-In Transaction (ESDTNFTTransfer)..."
-	# We use python to ensure correct hex conversion of the Token ID
-	$(eval TOKEN_HEX := $(shell python3 -c "print('$(TOKEN_ID)'.encode('utf-8').hex())"))
+	@echo "Creating Check-In Transaction (Corrected format)..."
+	# 1. Prepare Hex variables using Python to handle all conversions cleanly
+	$(eval TOKEN_HEX := $(shell python3 -c "print('$(strip $(TOKEN_ID))'.encode('utf-8').hex())"))
 	$(eval METHOD_HEX := $(shell python3 -c "print('checkIn'.encode('utf-8').hex())"))
 	$(eval NONCE_HEX := $(shell printf "%02x" $(NONCE)))
+	
+	# 2. CRITICAL: Convert the SC Address (bech32) to Hex
+	# This generates the hex address needed inside the data payload
+	$(eval SC_HEX := $(shell mxpy wallet bech32 decode $(strip $(SC_ADDRESS))))
+
+	# 3. Construct the payload with the Destination Address (SC_HEX) included
+	# Format: ESDTNFTTransfer @ Token @ Nonce @ Amount @ DESTINATION @ Function
 	mxpy --verbose tx new --pem=$(WALLET) --gas-limit=$(GAS_LIMIT) --proxy=$(PROXY) --chain=$(CHAIN_ID) \
-	--receiver=$(SC_ADDRESS) \
-	--data="ESDTNFTTransfer@$(TOKEN_HEX)@$(NONCE_HEX)@01@$(METHOD_HEX)" \
+	--receiver=$(strip $(SC_ADDRESS)) \
+	--data="ESDTNFTTransfer@$(TOKEN_HEX)@$(NONCE_HEX)@01@$(SC_HEX)@$(METHOD_HEX)" \
 	--send
 
 # Usage: make check-out FESTIVAL_ID=1
