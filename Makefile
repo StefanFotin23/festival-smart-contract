@@ -225,5 +225,16 @@ view-festival-data:
 view-ticket-prices:
 	mxpy --verbose contract query $(SC_ADDRESS) --proxy=$(PROXY) --function="getTicketPrices" --arguments $(FESTIVAL_ID)
 
-view-events:
+view-events:                                                                                                                                                                               │
 	mxpy --verbose contract query $(SC_ADDRESS) --proxy=$(PROXY) --function="getEvents" --arguments $(FESTIVAL_ID)
+
+# ----------------------------
+# Frontend
+# ----------------------------
+
+.PHONY: frontend-install frontend-start
+frontend-install:
+	cd frontend && npm install
+
+frontend-start: frontend-install
+	cd frontend && npm start
