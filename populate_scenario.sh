@@ -9,6 +9,11 @@ set -e
 # --- Global Variables ---
 TICKET_TOKEN_ID="FESTT-abcdef" # Replace with your actual ticket token identifier
 
+# Calculate current timestamp for setting realistic sale periods
+CURRENT_TIMESTAMP=$(date +%s)
+ONE_DAY_IN_SECONDS=$((24 * 3600))
+ONE_MONTH_IN_SECONDS=$((30 * ONE_DAY_IN_SECONDS))
+
 # --- Script ---
 
 echo "--- Setting Ticket Token Identifier (one-time setup) ---"
@@ -38,8 +43,12 @@ sleep 10
 make add-event FESTIVAL_ID=${FESTIVAL_1_ID} NAME="DJ Set by AI-DJ" LOCATION="Electronic Tent" START_TIME=$(date -d "2024-07-20 22:00:00" +%s) END_TIME=$(date -d "2024-07-21 00:00:00" +%s)
 sleep 10
 
-echo "--- Adding Ticket Price to Festival 1 ---"
-make add-ticket-price FESTIVAL_ID=${FESTIVAL_1_ID} NAME="Early Bird" PHASE="Phase 1" PRICE=100000000000000000 # 0.1 EGLD
+echo "--- Adding Ticket Prices to Festival 1 ---"
+# Full Pass Early Bird
+make add-ticket-price FESTIVAL_ID=${FESTIVAL_1_ID} NAME="Full Pass Early Bird" PHASE="Phase 1" PRICE=100000000000000000 SALE_START_TIME=${CURRENT_TIMESTAMP} SALE_END_TIME=$((CURRENT_TIMESTAMP + ONE_MONTH_IN_SECONDS)) TICKET_TYPE=FullPass
+sleep 10
+# Day 1 Ticket
+make add-ticket-price FESTIVAL_ID=${FESTIVAL_1_ID} NAME="Day 1 Pass" PHASE="Daily" PRICE=50000000000000000 SALE_START_TIME=${CURRENT_TIMESTAMP} SALE_END_TIME=$((CURRENT_TIMESTAMP + ONE_MONTH_IN_SECONDS)) TICKET_TYPE=DayTicket
 sleep 10
 
 echo "--- Adding Flash Event to Festival 1 ---"
@@ -68,8 +77,11 @@ echo "--- Adding Events to Festival 2 ---"
 make add-event FESTIVAL_ID=${FESTIVAL_2_ID} NAME="Ice Sculpture Contest" LOCATION="Chill Zone" START_TIME=$(date -d "2024-12-15 19:00:00" +%s) END_TIME=$(date -d "2024-12-15 20:00:00" +%s)
 sleep 10
 
-echo "--- Adding Ticket Price to Festival 2 ---"
-make add-ticket-price FESTIVAL_ID=${FESTIVAL_2_ID} NAME="General Access" PHASE="Standard" PRICE=250000000000000000 # 0.25 EGLD
+echo "--- Adding Ticket Prices to Festival 2 ---"
+# General Access Full Pass
+make add-ticket-price FESTIVAL_ID=${FESTIVAL_2_ID} NAME="General Access" PHASE="Standard" PRICE=250000000000000000 SALE_START_TIME=$((CURRENT_TIMESTAMP + ONE_MONTH_IN_SECONDS)) SALE_END_TIME=$((CURRENT_TIMESTAMP + 2 * ONE_MONTH_IN_SECONDS)) TICKET_TYPE=FullPass
+sleep 10
+
 echo "--- Festival 2 population complete! ---"
 echo "------------------------------------------------------"
 sleep 10
@@ -97,9 +109,13 @@ make add-event FESTIVAL_ID=${FESTIVAL_3_ID} NAME="Sunset Bonfire" LOCATION="Beac
 sleep 10
 
 echo "--- Adding Ticket Prices to Festival 3 ---"
-make add-ticket-price FESTIVAL_ID=${FESTIVAL_3_ID} NAME="Super Early Bird" PHASE="Launch" PRICE=50000000000000000 # 0.05 EGLD
+# Super Early Bird Full Pass
+make add-ticket-price FESTIVAL_ID=${FESTIVAL_3_ID} NAME="Super Early Bird" PHASE="Launch" PRICE=50000000000000000 SALE_START_TIME=$((CURRENT_TIMESTAMP + 2 * ONE_MONTH_IN_SECONDS)) SALE_END_TIME=$((CURRENT_TIMESTAMP + 3 * ONE_MONTH_IN_SECONDS)) TICKET_TYPE=FullPass
 sleep 10
-make add-ticket-price FESTIVAL_ID=${FESTIVAL_3_ID} NAME="VIP Pass" PHASE="Premium" PRICE=500000000000000000 # 0.5 EGLD
+# VIP Pass Full Pass
+make add-ticket-price FESTIVAL_ID=${FESTIVAL_3_ID} NAME="VIP Pass" PHASE="Premium" PRICE=500000000000000000 SALE_START_TIME=$((CURRENT_TIMESTAMP + 3 * ONE_MONTH_IN_SECONDS)) SALE_END_TIME=$((CURRENT_TIMESTAMP + 4 * ONE_MONTH_IN_SECONDS)) TICKET_TYPE=FullPass
+sleep 10
+
 echo "--- Festival 3 population complete! ---"
 echo "------------------------------------------------------"
 
