@@ -139,12 +139,18 @@ where
         Arg1: ProxyArg<ManagedBuffer<Env::Api>>,
         Arg2: ProxyArg<ManagedBuffer<Env::Api>>,
         Arg3: ProxyArg<BigUint<Env::Api>>,
+        Arg4: ProxyArg<u64>,
+        Arg5: ProxyArg<u64>,
+        Arg6: ProxyArg<u8>,
     >(
         self,
         festival_id: Arg0,
         name: Arg1,
         phase: Arg2,
         price: Arg3,
+        sale_start_time: Arg4,
+        sale_end_time: Arg5,
+        ticket_type: Arg6,
     ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
         self.wrapped_tx
             .payment(NotPayable)
@@ -153,6 +159,9 @@ where
             .argument(&name)
             .argument(&phase)
             .argument(&price)
+            .argument(&sale_start_time)
+            .argument(&sale_end_time)
+            .argument(&ticket_type)
             .original_result()
     }
 
@@ -222,16 +231,11 @@ where
             .original_result()
     }
 
-    pub fn check_in<
-        Arg0: ProxyArg<u64>,
-    >(
+    pub fn check_in(
         self,
-        festival_id: Arg0,
-    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
         self.wrapped_tx
-            .payment(NotPayable)
             .raw_call("checkIn")
-            .argument(&festival_id)
             .original_result()
     }
 
@@ -265,16 +269,13 @@ where
     }
 
     pub fn put_ticket_for_sale<
-        Arg0: ProxyArg<u64>,
-        Arg1: ProxyArg<BigUint<Env::Api>>,
+        Arg0: ProxyArg<BigUint<Env::Api>>,
     >(
         self,
-        festival_id: Arg0,
-        price: Arg1,
+        price: Arg0,
     ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
         self.wrapped_tx
             .raw_call("putTicketForSale")
-            .argument(&festival_id)
             .argument(&price)
             .original_result()
     }
@@ -309,23 +310,10 @@ where
     >(
         self,
         festival_id: Arg0,
-    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (ManagedBuffer<Env::Api>, ManagedBuffer<Env::Api>, BigUint<Env::Api>)>> {
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (ManagedBuffer<Env::Api>, ManagedBuffer<Env::Api>, BigUint<Env::Api>, u64, u64, u8)>> {
         self.wrapped_tx
             .payment(NotPayable)
             .raw_call("getTicketPrices")
-            .argument(&festival_id)
-            .original_result()
-    }
-
-    pub fn get_events_view<
-        Arg0: ProxyArg<u64>,
-    >(
-        self,
-        festival_id: Arg0,
-    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (ManagedBuffer<Env::Api>, ManagedBuffer<Env::Api>, u64, u64)>> {
-        self.wrapped_tx
-            .payment(NotPayable)
-            .raw_call("getEvents")
             .argument(&festival_id)
             .original_result()
     }

@@ -17,12 +17,15 @@ SC_ADDRESS = "erd1qqqqqqqqqqqqqpgq7kpf8d4eyy6umdgeug8la0ss64uxeg4cn2jsuxvsq2"
 # Build
 # ----------------------------
 
-.PHONY: build deploy
+.PHONY: build deploy upgrade
 build:
 	cd festival-smart-contract && sc-meta all build
 
 deploy:
 	./sc-deploy.sh
+
+upgrade:
+	./sc-upgrade.sh
 
 # ----------------------------
 # Owner Interactions

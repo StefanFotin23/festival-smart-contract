@@ -1,6 +1,13 @@
 #![no_std]
 
 multiversx_sc::imports!();
+multiversx_sc::derive_imports!();
+
+// Essential imports for manual encoding
+use multiversx_sc::codec::{TopEncode, TopDecode};
+
+const TICKET_TYPE_FULL: u8 = 0;
+const TICKET_TYPE_DAY: u8 = 1;
 
 #[multiversx_sc::contract]
 pub trait FestivalSmartContract {
@@ -22,7 +29,6 @@ pub trait FestivalSmartContract {
     #[storage_mapper("ticketTokenIdentifier")]
     fn ticket_token_identifier(&self) -> SingleValueMapper<TokenIdentifier>;
 
-    // Festival Data
     #[storage_mapper("festivalName")]
     fn festival_name(&self, id: u64) -> SingleValueMapper<ManagedBuffer>;
 
@@ -35,20 +41,25 @@ pub trait FestivalSmartContract {
     #[storage_mapper("festivalTax")]
     fn festival_tax(&self, id: u64) -> SingleValueMapper<(u8, u8)>;
 
-    // Lists
     #[storage_mapper("events")]
     fn events(&self, festival_id: u64) -> VecMapper<(ManagedBuffer, ManagedBuffer, u64, u64)>;
-
-    #[storage_mapper("announcements")]
-    fn announcements(&self, festival_id: u64) -> VecMapper<(ManagedBuffer, u64)>;
 
     #[storage_mapper("flashEvents")]
     fn flash_events(&self, festival_id: u64) -> VecMapper<(ManagedBuffer, u64, u64, u64)>;
 
     #[storage_mapper("ticketPrices")]
-    fn ticket_prices(&self, festival_id: u64) -> VecMapper<(ManagedBuffer, ManagedBuffer, BigUint)>;
+    fn ticket_prices(
+        &self,
+        festival_id: u64,
+    ) -> VecMapper<(
+        ManagedBuffer, // Name
+        ManagedBuffer, // Phase
+        BigUint,       // Price
+        u64,           // Sale Start
+        u64,           // Sale End
+        u8,            // Ticket Type
+    )>;
 
-    // Participants
     #[storage_mapper("userList")]
     fn user_list(&self) -> UnorderedSetMapper<ManagedAddress>;
 
@@ -66,6 +77,9 @@ pub trait FestivalSmartContract {
 
     #[storage_mapper("resaleInfo")]
     fn resale_info(&self, ticket_nonce: u64) -> SingleValueMapper<(ManagedAddress, u64, BigUint)>;
+
+    #[storage_mapper("ticketUsageData")]
+    fn ticket_usage_data(&self) -> MapMapper<u64, (ManagedAddress, u64)>;
 
     // ========================================================================
     // ENDPOINTS
@@ -112,8 +126,12 @@ pub trait FestivalSmartContract {
         name: ManagedBuffer,
         phase: ManagedBuffer,
         price: BigUint,
+        sale_start_time: u64,
+        sale_end_time: u64,
+        ticket_type: u8, 
     ) {
-        self.ticket_prices(festival_id).push(&(name, phase, price));
+        self.ticket_prices(festival_id)
+            .push(&(name, phase, price, sale_start_time, sale_end_time, ticket_type));
     }
 
     #[only_owner]
@@ -135,7 +153,6 @@ pub trait FestivalSmartContract {
         self.ticket_token_identifier().set(&token_identifier);
     }
 
-    // FIXED: Correct Minting Logic (Create -> Send)
     #[payable("EGLD")]
     #[endpoint(buyTicket)]
     fn buy_ticket(&self, festival_id: u64, ticket_price_name: ManagedBuffer) {
@@ -146,13 +163,20 @@ pub trait FestivalSmartContract {
         let (sold, inside) = self.festival_state(festival_id).get();
         require!(sold < max, "Tickets are sold out");
 
-        // Check Price
         let mut found_price = BigUint::zero();
+        let mut ticket_type = TICKET_TYPE_FULL; 
         let mut found = false;
+        let now = self.blockchain().get_block_timestamp();
+
         for item in self.ticket_prices(festival_id).iter() {
-            let (p_name, _p_phase, p_price) = item; 
+            let (p_name, _p_phase, p_price, p_sale_start, p_sale_end, p_type) = item;
             if p_name == ticket_price_name {
+                require!(
+                    now >= p_sale_start && now <= p_sale_end,
+                    "Ticket is not available for sale at this time"
+                );
                 found_price = p_price;
+                ticket_type = p_type;
                 found = true;
                 break;
             }
@@ -160,22 +184,40 @@ pub trait FestivalSmartContract {
         require!(found, "Price category not found");
         require!(payment == found_price, "Payment amount is incorrect");
 
-        // 1. Create NFT (Mints to Contract)
         let token_identifier = self.ticket_token_identifier().get();
         let mut uris = ManagedVec::new();
-        uris.push(ManagedBuffer::new_from_bytes(b"https://myfestival.com/ticket.json")); 
+        uris.push(ManagedBuffer::new_from_bytes(b"https://myfestival.com/ticket.json"));
+
+        // === FIXED ENCODING ===
+        // 1. Create a buffer
+        let mut attributes_buffer = ManagedBuffer::new();
+        // 2. Create the tuple
+        let attributes_tuple = (ticket_type, festival_id);
+        // 3. Encode the tuple into the buffer (This method is part of TopEncode trait)
+        attributes_tuple.top_encode(&mut attributes_buffer).unwrap();
+        // ======================
+
+        let festival_name = self.festival_name(festival_id).get();
+        let ticket_type_str = if ticket_type == TICKET_TYPE_FULL {
+            ManagedBuffer::from("Full Pass")
+        } else {
+            ManagedBuffer::from("Day Ticket")
+        };
+        
+        let mut nft_name = festival_name;
+        nft_name.append(&ManagedBuffer::from(" - "));
+        nft_name.append(&ticket_type_str);
 
         let new_nonce = self.send().esdt_nft_create(
             &token_identifier,
-            &BigUint::from(1u64), // Amount
-            &ManagedBuffer::from("Festival Ticket"), // Name
-            &BigUint::zero(), // Royalties
-            &ManagedBuffer::new(), // Hash
-            &ManagedBuffer::new(), // Attributes
+            &BigUint::from(1u64), 
+            &nft_name, 
+            &BigUint::zero(),    
+            &ManagedBuffer::new(), 
+            &attributes_buffer,
             &uris,
         );
 
-        // 2. Send NFT to Buyer
         self.send().direct_esdt(&caller, &token_identifier, new_nonce, &BigUint::from(1u64));
 
         self.festival_state(festival_id).set((sold + 1, inside));
@@ -195,16 +237,53 @@ pub trait FestivalSmartContract {
         self.participant_created_event(&caller, &username);
     }
 
+    #[payable("*")]
     #[endpoint(checkIn)]
-    fn check_in(&self, festival_id: u64) {
+    fn check_in(&self) {
+        let (payment_token, payment_nonce, payment_amount) = self.call_value().single_esdt().clone().into_tuple();
         let caller = self.blockchain().get_caller();
-        require!(self.user_list().contains(&caller), "You are not a participant");
+        let now = self.blockchain().get_block_timestamp();
+
+        require!(
+            payment_token == self.ticket_token_identifier().get(),
+            "Must send a valid ticket"
+        );
+        require!(payment_amount == 1, "Must send exactly 1 ticket");
+        
+        let token_data = self.blockchain().get_esdt_token_data(
+            &self.blockchain().get_sc_address(),
+            &payment_token,
+            payment_nonce,
+        );
+        
+        // === FIXED DECODING ===
+        // We use the static method from the TopDecode trait
+        // <(u8, u64)> is the type we want to decode
+        let attributes: (u8, u64) = TopDecode::top_decode(token_data.attributes).unwrap();
+        let (ticket_type, festival_id) = attributes;
+        // ======================
+
+        if !self.ticket_usage_data().contains_key(&payment_nonce) {
+            self.ticket_usage_data().insert(payment_nonce, (caller.clone(), now));
+        } else {
+            let (first_user, first_check_in_time) = self.ticket_usage_data().get(&payment_nonce).unwrap();
+            require!(caller == first_user, "Ticket is bound to another user");
+
+            if ticket_type == TICKET_TYPE_DAY {
+                require!(
+                    now < first_check_in_time + 24 * 3600,
+                    "24-hour pass has expired"
+                );
+            }
+        }
 
         let (_last_check_in, total_time) = self.user_time_data(&caller).get();
         self.user_time_data(&caller).set((self.blockchain().get_block_timestamp(), total_time));
 
         let (sold, inside) = self.festival_state(festival_id).get();
         self.festival_state(festival_id).set((sold, inside + 1));
+
+        self.send().direct_esdt(&caller, &payment_token, payment_nonce, &payment_amount);
     }
 
     #[endpoint(checkOut)]
@@ -221,7 +300,7 @@ pub trait FestivalSmartContract {
 
         let hours_spent = new_total_time / 3600;
         let current_score = self.user_score(&caller).get();
-        
+
         if hours_spent > current_score {
             self.user_score(&caller).set(hours_spent);
         }
@@ -243,32 +322,54 @@ pub trait FestivalSmartContract {
         let (_name, start, end, bonus) = flash_event;
 
         let current_time = self.blockchain().get_block_timestamp();
-        require!(current_time >= start && current_time <= end, "Flash event is not active");
-        
+        require!(
+            current_time >= start && current_time <= end,
+            "Flash event is not active"
+        );
+
         let unique_id = festival_id * 1_000_000 + (flash_event_index as u64);
 
-        require!(!self.claimed_flash_events(&caller).contains(&unique_id), "Already claimed");
+        require!(
+            !self.claimed_flash_events(&caller).contains(&unique_id),
+            "Already claimed"
+        );
 
         self.user_score(&caller).update(|score| *score += bonus);
         self.claimed_flash_events(&caller).insert(unique_id);
     }
 
-    // FIXED: Added .clone() to fix the move error
-    #[payable("EGLD")]
+    #[payable("*")]
     #[endpoint(putTicketForSale)]
-    fn put_ticket_for_sale(&self, festival_id: u64, price: BigUint) {
+    fn put_ticket_for_sale(&self, price: BigUint) {
         let (payment_token, payment_nonce, payment_amount) = self.call_value().single_esdt().clone().into_tuple();
-        
-        require!(payment_token == self.ticket_token_identifier().get(), "Wrong token sent");
+
+        require!(
+            payment_token == self.ticket_token_identifier().get(),
+            "Wrong token sent"
+        );
         require!(payment_amount == 1, "Must send exactly 1 ticket");
 
+        require!(
+            !self.ticket_usage_data().contains_key(&payment_nonce),
+            "Cannot sell a ticket that has been used"
+        );
+
         let caller = self.blockchain().get_caller();
+
+        let token_data = self.blockchain().get_esdt_token_data(
+            &self.blockchain().get_sc_address(),
+            &payment_token,
+            payment_nonce,
+        );
         
-        // We now hold the ticket. We save the seller info so we know who to pay later.
+        // === FIXED DECODING ===
+        let attributes: (u8, u64) = TopDecode::top_decode(token_data.attributes).unwrap();
+        let (_, festival_id) = attributes;
+        // ======================
+
         self.resale_info(payment_nonce).set((caller, festival_id, price));
     }
 
-    // FIXED: Now simply transfers the ticket from Contract -> Buyer
     #[payable("EGLD")]
     #[endpoint(buyResaleTicket)]
     fn buy_resale_ticket(&self, ticket_nonce: u64) {
@@ -280,7 +381,6 @@ pub trait FestivalSmartContract {
         let (seller, festival_id, price) = self.resale_info(ticket_nonce).get();
         require!(payment == price, "Incorrect payment amount");
 
-        // Calculate Tax
         let (tax_norm, tax_sold) = self.festival_tax(festival_id).get();
         let (sold, _inside) = self.festival_state(festival_id).get();
         let (_, _, max) = self.festival_config(festival_id).get();
@@ -289,16 +389,12 @@ pub trait FestivalSmartContract {
         let tax_amount = &price * tax_percent as u64 / 100u64;
         let seller_amount = &price - &tax_amount;
 
-        // 1. Pay Seller
         self.send().direct_egld(&seller, &seller_amount);
-        // 2. Pay Tax (to contract owner)
         self.send().direct_egld(&self.blockchain().get_owner_address(), &tax_amount);
 
-        // 3. Transfer Ticket to Buyer
         let token = self.ticket_token_identifier().get();
         self.send().direct_esdt(&caller, &token, ticket_nonce, &BigUint::from(1u64));
 
-        // Clear resale info
         self.resale_info(ticket_nonce).clear();
     }
 
@@ -335,18 +431,9 @@ pub trait FestivalSmartContract {
     }
 
     #[view(getTicketPrices)]
-    fn get_ticket_prices_view(&self, festival_id: u64) -> MultiValueEncoded<(ManagedBuffer, ManagedBuffer, BigUint)> {
+    fn get_ticket_prices_view(&self, festival_id: u64) -> MultiValueEncoded<(ManagedBuffer, ManagedBuffer, BigUint, u64, u64, u8)> {
         let mut result = MultiValueEncoded::new();
         for item in self.ticket_prices(festival_id).iter() {
-            result.push(item);
-        }
-        result
-    }
-
-    #[view(getEvents)]
-    fn get_events_view(&self, festival_id: u64) -> MultiValueEncoded<(ManagedBuffer, ManagedBuffer, u64, u64)> {
-        let mut result = MultiValueEncoded::new();
-        for item in self.events(festival_id).iter() {
             result.push(item);
         }
         result

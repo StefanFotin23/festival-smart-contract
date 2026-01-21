@@ -6,9 +6,9 @@
 
 // Init:                                 1
 // Upgrade:                              1
-// Endpoints:                           15
+// Endpoints:                           14
 // Async Callback (empty):               1
-// Total number of exported functions:  18
+// Total number of exported functions:  17
 
 #![no_std]
 
@@ -34,7 +34,6 @@ multiversx_sc_wasm_adapter::endpoints! {
         buyResaleTicket => buy_resale_ticket
         getFestivalData => get_festival_data
         getTicketPrices => get_ticket_prices_view
-        getEvents => get_events_view
     )
 }
 

@@ -38,7 +38,6 @@ pub async fn festival_smart_contract_cli() {
         "buyResaleTicket" => interact.buy_resale_ticket().await,
         "getFestivalData" => interact.get_festival_data().await,
         "getTicketPrices" => interact.get_ticket_prices_view().await,
-        "getEvents" => interact.get_events_view().await,
         _ => panic!("unknown command: {}", &cmd),
     }
 }
@@ -121,7 +120,7 @@ impl ContractInteract {
             .interactor
             .tx()
             .from(&self.wallet_address)
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .init()
             .code(&self.contract_code)
@@ -139,7 +138,7 @@ impl ContractInteract {
             .tx()
             .to(self.state.current_address())
             .from(&self.wallet_address)
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .upgrade()
             .code(&self.contract_code)
@@ -164,7 +163,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .add_festival(name, start_time, end_time, max_tickets, tax_normal, tax_sold_out)
             .returns(ReturnsResultUnmanaged)
@@ -186,7 +185,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .add_event(festival_id, name, location, start_time, end_time)
             .returns(ReturnsResultUnmanaged)
@@ -201,15 +200,18 @@ impl ContractInteract {
         let name = ManagedBuffer::new_from_bytes(&b""[..]);
         let phase = ManagedBuffer::new_from_bytes(&b""[..]);
         let price = BigUint::<StaticApi>::from(0u128);
+        let sale_start_time = 0u64;
+        let sale_end_time = 0u64;
+        let ticket_type = 0u8;
 
         let response = self
             .interactor
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .add_ticket_price(festival_id, name, phase, price)
+            .add_ticket_price(festival_id, name, phase, price, sale_start_time, sale_end_time, ticket_type)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -229,7 +231,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .add_flash_event(festival_id, name, start_time, end_time, bonus_points)
             .returns(ReturnsResultUnmanaged)
@@ -247,7 +249,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .set_ticket_token_identifier(token_identifier)
             .returns(ReturnsResultUnmanaged)
@@ -268,7 +270,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .buy_ticket(festival_id, ticket_price_name)
             .egld(egld_amount)
@@ -287,7 +289,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .create_participant(username)
             .returns(ReturnsResultUnmanaged)
@@ -298,16 +300,19 @@ impl ContractInteract {
     }
 
     pub async fn check_in(&mut self) {
-        let festival_id = 0u64;
+        let token_id = String::new();
+        let token_nonce = 0u64;
+        let token_amount = BigUint::<StaticApi>::from(0u128);
 
         let response = self
             .interactor
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .check_in(festival_id)
+            .check_in()
+            .payment((TokenIdentifier::from(token_id.as_str()), token_nonce, token_amount))
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -323,7 +328,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .check_out(festival_id)
             .returns(ReturnsResultUnmanaged)
@@ -342,7 +347,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .claim_flash_event_points(festival_id, flash_event_index)
             .returns(ReturnsResultUnmanaged)
@@ -353,9 +358,10 @@ impl ContractInteract {
     }
 
     pub async fn put_ticket_for_sale(&mut self) {
-        let egld_amount = BigUint::<StaticApi>::from(0u128);
+        let token_id = String::new();
+        let token_nonce = 0u64;
+        let token_amount = BigUint::<StaticApi>::from(0u128);
 
-        let festival_id = 0u64;
         let price = BigUint::<StaticApi>::from(0u128);
 
         let response = self
@@ -363,10 +369,10 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .put_ticket_for_sale(festival_id, price)
-            .egld(egld_amount)
+            .put_ticket_for_sale(price)
+            .payment((TokenIdentifier::from(token_id.as_str()), token_nonce, token_amount))
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -384,7 +390,7 @@ impl ContractInteract {
             .tx()
             .from(&self.wallet_address)
             .to(self.state.current_address())
-            .gas(100_000_000u64)
+            .gas(30_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .buy_resale_ticket(ticket_nonce)
             .egld(egld_amount)
@@ -420,22 +426,6 @@ impl ContractInteract {
             .to(self.state.current_address())
             .typed(proxy::FestivalSmartContractProxy)
             .get_ticket_prices_view(festival_id)
-            .returns(ReturnsResultUnmanaged)
-            .run()
-            .await;
-
-        println!("Result: {result_value:?}");
-    }
-
-    pub async fn get_events_view(&mut self) {
-        let festival_id = 0u64;
-
-        let result_value = self
-            .interactor
-            .query()
-            .to(self.state.current_address())
-            .typed(proxy::FestivalSmartContractProxy)
-            .get_events_view(festival_id)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
