@@ -162,11 +162,11 @@ create-participant:
 	--arguments "str:$(USERNAME)" \
 	--send
 
-# Usage: make check-in ...
+# Usage: make check-in NONCE=1
 check-in:
 	mxpy --verbose contract call $(SC_ADDRESS) --pem=$(WALLET) --gas-limit=$(GAS_LIMIT) --proxy=$(PROXY) --chain=$(CHAIN_ID) \
 	--function="checkIn" \
-	--esdt-transfer $(TOKEN_ID) $(NONCE) 1 \
+	--token-transfers "$(TOKEN_ID):$(NONCE):1" \
 	--send
 
 # Usage: make check-out FESTIVAL_ID=1
@@ -188,7 +188,7 @@ put-ticket-for-sale:
 	mxpy --verbose contract call $(SC_ADDRESS) --pem=$(WALLET) --gas-limit=$(GAS_LIMIT) --proxy=$(PROXY) --chain=$(CHAIN_ID) \
 	--function="putTicketForSale" \
 	--arguments $(PRICE) \
-	--esdt-transfer $(TOKEN_ID) $(NONCE) 1 \
+	--token-transfers "$(TOKEN_ID):$(NONCE):1" \
 	--send
 
 # Usage: make buy-resale-ticket ...
