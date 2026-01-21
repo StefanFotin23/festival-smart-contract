@@ -164,9 +164,14 @@ create-participant:
 
 # Usage: make check-in NONCE=1
 check-in:
-	mxpy --verbose contract call $(SC_ADDRESS) --pem=$(WALLET) --gas-limit=$(GAS_LIMIT) --proxy=$(PROXY) --chain=$(CHAIN_ID) \
-	--function="checkIn" \
-	--token-transfers "$(TOKEN_ID):$(NONCE):1" \
+	@echo "Creating Check-In Transaction (ESDTNFTTransfer)..."
+	# We use python to ensure correct hex conversion of the Token ID
+	$(eval TOKEN_HEX := $(shell python3 -c "print('$(TOKEN_ID)'.encode('utf-8').hex())"))
+	$(eval METHOD_HEX := $(shell python3 -c "print('checkIn'.encode('utf-8').hex())"))
+	$(eval NONCE_HEX := $(shell printf "%02x" $(NONCE)))
+	mxpy --verbose tx new --pem=$(WALLET) --gas-limit=$(GAS_LIMIT) --proxy=$(PROXY) --chain=$(CHAIN_ID) \
+	--receiver=$(SC_ADDRESS) \
+	--data="ESDTNFTTransfer@$(TOKEN_HEX)@$(NONCE_HEX)@01@$(METHOD_HEX)" \
 	--send
 
 # Usage: make check-out FESTIVAL_ID=1
@@ -183,12 +188,16 @@ claim-flash-event-points:
 	--arguments $(FESTIVAL_ID) $(FLASH_EVENT_INDEX) \
 	--send
 
-# Usage: make put-ticket-for-sale ...
+# Usage: make put-ticket-for-sale PRICE=100000000000000000
 put-ticket-for-sale:
-	mxpy --verbose contract call $(SC_ADDRESS) --pem=$(WALLET) --gas-limit=$(GAS_LIMIT) --proxy=$(PROXY) --chain=$(CHAIN_ID) \
-	--function="putTicketForSale" \
-	--arguments $(PRICE) \
-	--token-transfers "$(TOKEN_ID):$(NONCE):1" \
+	@echo "Putting Ticket on Sale..."
+	$(eval TOKEN_HEX := $(shell python3 -c "print('$(TOKEN_ID)'.encode('utf-8').hex())"))
+	$(eval METHOD_HEX := $(shell python3 -c "print('putTicketForSale'.encode('utf-8').hex())"))
+	$(eval NONCE_HEX := $(shell printf "%02x" $(NONCE)))
+	$(eval PRICE_HEX := $(shell printf "%x" $(PRICE)))
+	mxpy --verbose tx new --pem=$(WALLET) --gas-limit=$(GAS_LIMIT) --proxy=$(PROXY) --chain=$(CHAIN_ID) \
+	--receiver=$(SC_ADDRESS) \
+	--data="ESDTNFTTransfer@$(TOKEN_HEX)@$(NONCE_HEX)@01@$(METHOD_HEX)@$(PRICE_HEX)" \
 	--send
 
 # Usage: make buy-resale-ticket ...
