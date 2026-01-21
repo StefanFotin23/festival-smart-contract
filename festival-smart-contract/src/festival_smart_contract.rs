@@ -188,14 +188,12 @@ pub trait FestivalSmartContract {
         let mut uris = ManagedVec::new();
         uris.push(ManagedBuffer::new_from_bytes(b"https://myfestival.com/ticket.json"));
 
-        // === FIXED ENCODING ===
         // 1. Create a buffer
         let mut attributes_buffer = ManagedBuffer::new();
         // 2. Create the tuple
         let attributes_tuple = (ticket_type, festival_id);
         // 3. Encode the tuple into the buffer (This method is part of TopEncode trait)
         attributes_tuple.top_encode(&mut attributes_buffer).unwrap();
-        // ======================
 
         let festival_name = self.festival_name(festival_id).get();
         let ticket_type_str = if ticket_type == TICKET_TYPE_FULL {
@@ -256,12 +254,10 @@ pub trait FestivalSmartContract {
             payment_nonce,
         );
         
-        // === FIXED DECODING ===
         // We use the static method from the TopDecode trait
         // <(u8, u64)> is the type we want to decode
         let attributes: (u8, u64) = TopDecode::top_decode(token_data.attributes).unwrap();
         let (ticket_type, festival_id) = attributes;
-        // ======================
 
         if !self.ticket_usage_data().contains_key(&payment_nonce) {
             self.ticket_usage_data().insert(payment_nonce, (caller.clone(), now));
@@ -362,10 +358,8 @@ pub trait FestivalSmartContract {
             payment_nonce,
         );
         
-        // === FIXED DECODING ===
         let attributes: (u8, u64) = TopDecode::top_decode(token_data.attributes).unwrap();
         let (_, festival_id) = attributes;
-        // ======================
 
         self.resale_info(payment_nonce).set((caller, festival_id, price));
     }

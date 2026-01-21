@@ -23,16 +23,16 @@ By subscribing to these events, you can build a complete and real-time picture o
 
 *   `getFestivalData(festival_id: u64)`: Returns information about a festival (name, start, end, max_tickets, sold_tickets, inside).
 *   `getEventsView(festival_id: u64)`: Returns the events of a festival.
-*   `getTicketPricesView(festival_id: u64)`: Returns the ticket prices of a festival.
+*   `getTicketPricesView(festival_id: u64)`: Returns the ticket prices of a festival, including sale periods and ticket types.
 
 ### Public Endpoints
 
-*   `buyTicket(festival_id: u64, ticket_price_name: String)`: Payable endpoint to buy a ticket.
+*   `buyTicket(festival_id: u64, ticket_price_name: String)`: Payable endpoint to buy a ticket. Validates sale period. Mints an NFT with a dynamic name (e.g., "Summer Fest 2024 - Full Pass") and stores ticket type and festival ID in its attributes.
 *   `createParticipant(username: String)`: Creates a participant profile.
-*   `checkIn(festival_id: u64)`: Checks in a user to a festival.
+*   `checkIn()`: Payable endpoint that requires sending a ticket NFT. On first use, the ticket is "soul-bound" to the caller. For "Day Tickets", enforces a 24-hour validity from first check-in. The ticket NFT is returned after processing.
 *   `checkOut(festival_id: u64)`: Checks out a user from a festival.
 *   `claimFlashEventPoints(festival_id: u64, flash_event_index: u64)`: Claims points for a flash event.
-*   `putTicketForSale(festival_id: u64, price: BigUint)`: Puts a ticket up for sale. This is a payable endpoint where the payment is the ticket NFT itself.
+*   `putTicketForSale(price: BigUint)`: Payable endpoint where the payment is the ticket NFT itself. Cannot be used if the ticket has already been used for check-in.
 *   `buyResaleTicket(ticket_nonce: u64)`: Payable endpoint to buy a ticket from another user.
 
 ## For the Owner
@@ -41,7 +41,7 @@ As the owner of the contract, you can call the following endpoints to manage the
 
 *   `addFestival(name: String, start_time: u64, end_time: u64, max_tickets: u64, tax_normal: u8, tax_sold_out: u8)`: Creates a new festival.
 *   `addEvent(festival_id: u64, name: String, location: String, start_time: u64, end_time: u64)`: Adds a new event to a festival.
-*   `addTicketPrice(festival_id: u64, name: String, phase: String, price: BigUint)`: Adds a new ticket price for a festival.
+*   `addTicketPrice(festival_id: u64, name: String, phase: String, price: BigUint, sale_start_time: u64, sale_end_time: u64, ticket_type: TicketType)`: Adds a new ticket price for a festival, specifying its sales period and type (Full Pass or Day Ticket).
 *   `addFlashEvent(festival_id: u64, name: String, start_time: u64, end_time: u64, bonus_points: u64)`: Adds a new flash event to a festival.
 *   `setTicketTokenIdentifier(token_identifier: TokenIdentifier)`: Sets the token identifier for the ticket NFTs. This needs to be an NFT collection that you own.
 
