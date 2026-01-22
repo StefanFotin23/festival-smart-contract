@@ -71,8 +71,28 @@ sleep ${SLEEP_TIME}
 
 # We assume this is the next ID. If contract was empty, it's 1. 
 # Adjust manually if you have existing festivals.
-FEST_ID=8  
+# -----------------------------------------------------------------
+# DYNAMIC ID FETCH
+# -----------------------------------------------------------------
+echo "--- Fetching the new Festival ID from Storage... ---"
 
+# 1. The Storage Key for "festivalCount" in Hex (ASCII encoding)
+#    "festivalCount" -> 666573746976616c436f756e74
+FESTIVAL_COUNT_KEY="666573746976616c436f756e74"
+
+# 2. Query the storage directly using curl (fastest method in bash)
+#    We extract the "value" field from the JSON response.
+RAW_HEX=$(curl -s "${PROXY}/address/${SC_ADDRESS}/key/${FESTIVAL_COUNT_KEY}" | grep -o '"value":"[^"]*"' | cut -d'"' -f4)
+
+# 3. Convert Hex to Decimal (Bash can do this natively)
+if [ -z "$RAW_HEX" ]; then
+    echo "❌ Error: Could not fetch Festival ID. Is the contract deployed?"
+    exit 1
+fi
+
+FEST_ID=$((16#$RAW_HEX))
+
+echo "✅ Auto-detected new Festival ID: ${FEST_ID}"
 
 # -----------------------------------------------------------------
 # 3. ADD EVENTS (Lineup)

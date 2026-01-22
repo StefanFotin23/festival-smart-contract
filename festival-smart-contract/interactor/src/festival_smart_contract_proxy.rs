@@ -96,7 +96,7 @@ where
         max_tickets: Arg3,
         tax_normal: Arg4,
         tax_sold_out: Arg5,
-    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, u64> {
         self.wrapped_tx
             .payment(NotPayable)
             .raw_call("addFestival")
