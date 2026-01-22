@@ -4,7 +4,7 @@ import {
   WebWalletLoginButton,
   LedgerLoginButton,
   WalletConnectLoginButton
-} from '@multiversx/sdk-dapp/UI';
+} from '@multiversx/sdk-dapp';
 import { Box, Typography, Button } from '@mui/material';
 import { useNavigate } from 'react-router-dom';
 

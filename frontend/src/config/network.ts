@@ -1,9 +1,3 @@
-import {
-  
-  ChainID,
-  
-} from '@multiversx/sdk-core';
-
 export const contractAddress = 'erd1qqqqqqqqqqqqqpgq7kpf8d4eyy6umdgeug8la0ss64uxeg4cn2jsuxvsq2';
 
 export const walletConnectV2ProjectId = '181ba4a0bdd8ae532f851c8edcffcf30';
@@ -15,5 +9,5 @@ export const apiNetwork = {
   apiAddress: 'https://devnet-api.multiversx.com',
   explorerAddress: 'https://devnet-explorer.multiversx.com',
   apiTimeout: 10000,
-  chainId: ChainID.Devnet,
+  chainId: 'D',
 };

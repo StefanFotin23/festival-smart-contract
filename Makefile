@@ -236,5 +236,7 @@ view-events:                                                                    
 frontend-install:
 	cd frontend && npm install
 
+FRONTEND_PORT ?= 3001
+
 frontend-start: frontend-install
-	cd frontend && npm start
+	cd frontend && PORT=$(FRONTEND_PORT) npm start
