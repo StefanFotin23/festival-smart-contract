@@ -453,8 +453,13 @@ pub trait FestivalSmartContract {
         self.ticket_usage_data()
             .insert(payment_nonce, (caller.clone(), now));
 
-        // 5. Update user time data for check-in
-        let (_last_check_in, total_time) = self.user_time_data(&caller).get();
+        // 5. Update user time data for check-in (handle case where user never created participant)
+        let total_time = if self.user_time_data(&caller).is_empty() {
+            0u64
+        } else {
+            let (_last_check_in, tt) = self.user_time_data(&caller).get();
+            tt
+        };
         self.user_time_data(&caller).set((now, total_time));
 
         // 6. Update festival state (increment people inside)
