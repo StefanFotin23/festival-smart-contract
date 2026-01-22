@@ -81,6 +81,18 @@ pub trait FestivalSmartContract {
     #[storage_mapper("ticketUsageData")]
     fn ticket_usage_data(&self) -> MapMapper<u64, (ManagedAddress, u64)>;
 
+    #[storage_mapper("products")]
+    fn products(&self, festival_id: u64) -> VecMapper<(u64, ManagedBuffer, BigUint, ManagedBuffer, ManagedBuffer)>;
+
+    #[storage_mapper("braceletFunds")]
+    fn bracelet_funds(&self, festival_id: u64, user: &ManagedAddress) -> SingleValueMapper<BigUint>;
+
+    #[storage_mapper("bonusPercentage")]
+    fn bonus_percentage(&self) -> SingleValueMapper<u64>;
+
+    #[storage_mapper("egldToUsdRate")]
+    fn egld_to_usd_rate(&self) -> SingleValueMapper<BigUint>;
+
     // ========================================================================
     // ENDPOINTS
     // ========================================================================
@@ -151,6 +163,96 @@ pub trait FestivalSmartContract {
     #[endpoint(setTicketTokenIdentifier)]
     fn set_ticket_token_identifier(&self, token_identifier: TokenIdentifier) {
         self.ticket_token_identifier().set(&token_identifier);
+    }
+
+    #[only_owner]
+    #[endpoint(addProduct)]
+    fn add_product(
+        &self,
+        festival_id: u64,
+        product_id: u64,
+        name: ManagedBuffer,
+        price: BigUint,
+        description: ManagedBuffer,
+        image_url: ManagedBuffer,
+    ) {
+        let product_data = (product_id, name, price, description, image_url);
+        self.products(festival_id).push(&product_data);
+    }
+
+    #[only_owner]
+    #[endpoint(setBonusPercentage)]
+    fn set_bonus_percentage(&self, percentage: u64) {
+        self.bonus_percentage().set(percentage);
+    }
+
+    #[only_owner]
+    #[endpoint(setEgldToUsdRate)]
+    fn set_egld_to_usd_rate(&self, rate: BigUint) {
+        self.egld_to_usd_rate().set(rate);
+    }
+
+    #[payable("EGLD")]
+    #[endpoint(addFunds)]
+    fn add_funds(&self, festival_id: u64) {
+        let payment = self.call_value().egld().clone_value();
+        require!(payment > 0, "Payment must be positive");
+        let caller = self.blockchain().get_caller();
+
+        let rate = self.egld_to_usd_rate().get();
+        require!(rate > 0, "EGLD to USD rate not set");
+
+        let mut funds_in_usd = payment * rate;
+        let bonus = self.bonus_percentage().get();
+
+        if bonus > 0 {
+            let bonus_amount = &funds_in_usd * bonus / 100u64;
+            funds_in_usd += bonus_amount;
+        }
+
+        self.bracelet_funds(festival_id, &caller).update(|current_funds| *current_funds += funds_in_usd);
+    }
+
+    #[payable("*")]
+    #[endpoint(buyProduct)]
+    fn buy_product(&self, festival_id: u64, product_id: u64, quantity: u64, pay_with_bracelet: bool) {
+        let caller = self.blockchain().get_caller();
+        let mut product_found = false;
+        let mut product_price = BigUint::zero();
+
+        for product_tuple in self.products(festival_id).iter() {
+            let (p_id, _p_name, p_price, _p_desc, _p_img) = product_tuple;
+            if p_id == product_id {
+                product_found = true;
+                product_price = p_price;
+                break;
+            }
+        }
+        require!(product_found, "Product not found");
+
+        let total_price = product_price * quantity;
+
+        if pay_with_bracelet {
+            let user_funds = self.bracelet_funds(festival_id, &caller).get();
+            require!(user_funds >= total_price, "Insufficient funds in bracelet");
+
+            self.bracelet_funds(festival_id, &caller).update(|current_funds| *current_funds -= &total_price);
+        } else {
+            let payment = self.call_value().egld().clone_value();
+            let rate = self.egld_to_usd_rate().get();
+            require!(rate > 0, "EGLD to USD rate not set");
+
+            let payment_in_usd = payment * rate;
+            require!(payment_in_usd >= total_price, "Incorrect payment amount");
+
+            if payment_in_usd > total_price {
+                let change_in_usd = payment_in_usd - &total_price;
+                let change_in_egld = change_in_usd / &rate;
+                if change_in_egld > 0 {
+                    self.send().direct_egld(&caller, &change_in_egld);
+                }
+            }
+        }
     }
 
     #[payable("EGLD")]
@@ -431,5 +533,19 @@ pub trait FestivalSmartContract {
             result.push(item);
         }
         result
+    }
+
+    #[view(getProducts)]
+    fn get_products(&self, festival_id: u64) -> MultiValueEncoded<(u64, ManagedBuffer, BigUint, ManagedBuffer, ManagedBuffer)> {
+        let mut products_result = MultiValueEncoded::new();
+        for product in self.products(festival_id).iter() {
+            products_result.push(product);
+        }
+        products_result
+    }
+
+    #[view(getBraceletFunds)]
+    fn get_bracelet_funds(&self, festival_id: u64, user: ManagedAddress) -> BigUint {
+        self.bracelet_funds(festival_id, &user).get()
     }
 }
