@@ -45,55 +45,60 @@ pub async fn festival_smart_contract_cli() {
         "getTicketPrices" => interact.get_ticket_prices_view().await,
         "getProducts" => interact.get_products().await,
         "getBraceletFunds" => interact.get_bracelet_funds().await,
+        "getAllFestivals" => interact.get_all_festivals().await,
+        "getEventsForFestival" => interact.get_events_for_festival().await,
+        "getBonusPercentage" => interact.get_bonus_percentage().await,
+        "getEgldToUsdRate" => interact.get_egld_to_usd_rate().await,
+        "getLeaderboard" => interact.get_leaderboard().await,
         _ => panic!("unknown command: {}", &cmd),
     }
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct State {
-    contract_address: Option<Bech32Address>,
+    contract_address: Option<Bech32Address>
 }
 
 impl State {
-    // Deserializes state from file
-    pub fn load_state() -> Self {
-        if Path::new(STATE_FILE).exists() {
-            let mut file = std::fs::File::open(STATE_FILE).unwrap();
-            let mut content = String::new();
-            file.read_to_string(&mut content).unwrap();
-            toml::from_str(&content).unwrap()
-        } else {
-            Self::default()
+        // Deserializes state from file
+        pub fn load_state() -> Self {
+            if Path::new(STATE_FILE).exists() {
+                let mut file = std::fs::File::open(STATE_FILE).unwrap();
+                let mut content = String::new();
+                file.read_to_string(&mut content).unwrap();
+                toml::from_str(&content).unwrap()
+            } else {
+                Self::default()
+            }
+        }
+    
+        /// Sets the contract address
+        pub fn set_address(&mut self, address: Bech32Address) {
+            self.contract_address = Some(address);
+        }
+    
+        /// Returns the contract address
+        pub fn current_address(&self) -> &Bech32Address {
+            self.contract_address
+                .as_ref()
+                .expect("no known contract, deploy first")
         }
     }
-
-    /// Sets the contract address
-    pub fn set_address(&mut self, address: Bech32Address) {
-        self.contract_address = Some(address);
+    
+    impl Drop for State {
+        // Serializes state to file
+        fn drop(&mut self) {
+            let mut file = std::fs::File::create(STATE_FILE).unwrap();
+            file.write_all(toml::to_string(self).unwrap().as_bytes())
+                .unwrap();
+        }
     }
-
-    /// Returns the contract address
-    pub fn current_address(&self) -> &Bech32Address {
-        self.contract_address
-            .as_ref()
-            .expect("no known contract, deploy first")
-    }
-}
-
-impl Drop for State {
-    // Serializes state to file
-    fn drop(&mut self) {
-        let mut file = std::fs::File::create(STATE_FILE).unwrap();
-        file.write_all(toml::to_string(self).unwrap().as_bytes())
-            .unwrap();
-    }
-}
 
 pub struct ContractInteract {
     interactor: Interactor,
     wallet_address: Address,
     contract_code: BytesValue,
-    state: State,
+    state: State
 }
 
 impl ContractInteract {
@@ -108,7 +113,7 @@ impl ContractInteract {
         // Useful in the chain simulator setting
         // generate blocks until ESDTSystemSCAddress is enabled
         interactor.generate_blocks_until_all_activations().await;
-
+        
         let contract_code = BytesValue::interpret_from(
             "mxsc:../output/festival-smart-contract.mxsc.json",
             &InterpreterContext::default(),
@@ -118,7 +123,7 @@ impl ContractInteract {
             interactor,
             wallet_address,
             contract_code,
-            state: State::load_state(),
+            state: State::load_state()
         }
     }
 
@@ -172,14 +177,7 @@ impl ContractInteract {
             .to(self.state.current_address())
             .gas(100_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .add_festival(
-                name,
-                start_time,
-                end_time,
-                max_tickets,
-                tax_normal,
-                tax_sold_out,
-            )
+            .add_festival(name, start_time, end_time, max_tickets, tax_normal, tax_sold_out)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -225,15 +223,7 @@ impl ContractInteract {
             .to(self.state.current_address())
             .gas(100_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .add_ticket_price(
-                festival_id,
-                name,
-                phase,
-                price,
-                sale_start_time,
-                sale_end_time,
-                ticket_type,
-            )
+            .add_ticket_price(festival_id, name, phase, price, sale_start_time, sale_end_time, ticket_type)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -426,7 +416,8 @@ impl ContractInteract {
     }
 
     pub async fn check_in(&mut self) {
-        let egld_amount = BigUint::<StaticApi>::from(0u128);
+        let user_address = ManagedAddress::<StaticApi>::zero();
+        let ticket_nonce = 0u64;
 
         let response = self
             .interactor
@@ -435,8 +426,7 @@ impl ContractInteract {
             .to(self.state.current_address())
             .gas(100_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .check_in()
-            .egld(egld_amount)
+            .check_in(user_address, ticket_nonce)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -445,6 +435,7 @@ impl ContractInteract {
     }
 
     pub async fn check_out(&mut self) {
+        let user_address = ManagedAddress::<StaticApi>::zero();
         let festival_id = 0u64;
 
         let response = self
@@ -454,7 +445,7 @@ impl ContractInteract {
             .to(self.state.current_address())
             .gas(100_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .check_out(festival_id)
+            .check_out(user_address, festival_id)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -463,6 +454,7 @@ impl ContractInteract {
     }
 
     pub async fn claim_flash_event_points(&mut self) {
+        let user_address = ManagedAddress::<StaticApi>::zero();
         let festival_id = 0u64;
         let flash_event_index = 0u32;
 
@@ -473,7 +465,7 @@ impl ContractInteract {
             .to(self.state.current_address())
             .gas(100_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .claim_flash_event_points(festival_id, flash_event_index)
+            .claim_flash_event_points(user_address, festival_id, flash_event_index)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -482,7 +474,9 @@ impl ContractInteract {
     }
 
     pub async fn put_ticket_for_sale(&mut self) {
-        let egld_amount = BigUint::<StaticApi>::from(0u128);
+        let token_id = String::new();
+        let token_nonce = 0u64;
+        let token_amount = BigUint::<StaticApi>::from(0u128);
 
         let price = BigUint::<StaticApi>::from(0u128);
 
@@ -494,7 +488,7 @@ impl ContractInteract {
             .gas(100_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
             .put_ticket_for_sale(price)
-            .egld(egld_amount)
+            .payment((TokenIdentifier::from(token_id.as_str()), token_nonce, token_amount))
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -587,4 +581,77 @@ impl ContractInteract {
 
         println!("Result: {result_value:?}");
     }
+
+    pub async fn get_all_festivals(&mut self) {
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_all_festivals()
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_events_for_festival(&mut self) {
+        let festival_id = 0u64;
+
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_events_for_festival(festival_id)
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_bonus_percentage(&mut self) {
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_bonus_percentage()
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_egld_to_usd_rate(&mut self) {
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_egld_to_usd_rate()
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_leaderboard(&mut self) {
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_leaderboard()
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
 }

@@ -6,9 +6,9 @@
 
 // Init:                                 1
 // Upgrade:                              1
-// Endpoints:                           21
+// Endpoints:                           26
 // Async Callback (empty):               1
-// Total number of exported functions:  24
+// Total number of exported functions:  29
 
 #![no_std]
 
@@ -41,6 +41,11 @@ multiversx_sc_wasm_adapter::endpoints! {
         getTicketPrices => get_ticket_prices_view
         getProducts => get_products
         getBraceletFunds => get_bracelet_funds
+        getAllFestivals => get_all_festivals
+        getEventsForFestival => get_events_for_festival
+        getBonusPercentage => get_bonus_percentage
+        getEgldToUsdRate => get_egld_to_usd_rate
+        getLeaderboard => get_leaderboard
     )
 }
 

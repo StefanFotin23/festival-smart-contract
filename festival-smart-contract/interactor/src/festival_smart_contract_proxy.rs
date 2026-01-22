@@ -318,38 +318,52 @@ where
             .original_result()
     }
 
-    pub fn check_in(
+    pub fn check_in<
+        Arg0: ProxyArg<ManagedAddress<Env::Api>>,
+        Arg1: ProxyArg<u64>,
+    >(
         self,
-    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
+        user_address: Arg0,
+        ticket_nonce: Arg1,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
         self.wrapped_tx
+            .payment(NotPayable)
             .raw_call("checkIn")
+            .argument(&user_address)
+            .argument(&ticket_nonce)
             .original_result()
     }
 
     pub fn check_out<
-        Arg0: ProxyArg<u64>,
+        Arg0: ProxyArg<ManagedAddress<Env::Api>>,
+        Arg1: ProxyArg<u64>,
     >(
         self,
-        festival_id: Arg0,
+        user_address: Arg0,
+        festival_id: Arg1,
     ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
         self.wrapped_tx
             .payment(NotPayable)
             .raw_call("checkOut")
+            .argument(&user_address)
             .argument(&festival_id)
             .original_result()
     }
 
     pub fn claim_flash_event_points<
-        Arg0: ProxyArg<u64>,
-        Arg1: ProxyArg<usize>,
+        Arg0: ProxyArg<ManagedAddress<Env::Api>>,
+        Arg1: ProxyArg<u64>,
+        Arg2: ProxyArg<usize>,
     >(
         self,
-        festival_id: Arg0,
-        flash_event_index: Arg1,
+        user_address: Arg0,
+        festival_id: Arg1,
+        flash_event_index: Arg2,
     ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
         self.wrapped_tx
             .payment(NotPayable)
             .raw_call("claimFlashEventPoints")
+            .argument(&user_address)
             .argument(&festival_id)
             .argument(&flash_event_index)
             .original_result()
@@ -431,6 +445,55 @@ where
             .raw_call("getBraceletFunds")
             .argument(&festival_id)
             .argument(&user)
+            .original_result()
+    }
+
+    pub fn get_all_festivals(
+        self,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (u64, ManagedBuffer<Env::Api>, u64, u64, u64, u64, u64)>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getAllFestivals")
+            .original_result()
+    }
+
+    pub fn get_events_for_festival<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (ManagedBuffer<Env::Api>, ManagedBuffer<Env::Api>, u64, u64)>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getEventsForFestival")
+            .argument(&festival_id)
+            .original_result()
+    }
+
+    pub fn get_bonus_percentage(
+        self,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, u64> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getBonusPercentage")
+            .original_result()
+    }
+
+    pub fn get_egld_to_usd_rate(
+        self,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, BigUint<Env::Api>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getEgldToUsdRate")
+            .original_result()
+    }
+
+    pub fn get_leaderboard(
+        self,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (ManagedBuffer<Env::Api>, u64, u64)>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getLeaderboard")
             .original_result()
     }
 }
