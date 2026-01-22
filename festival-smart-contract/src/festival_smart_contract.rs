@@ -441,12 +441,13 @@ pub trait FestivalSmartContract {
             "Ticket has already been used for check-in"
         );
 
-        // 3. Verify festival is active
-        let (festival_start, festival_end, _max_tickets) = self.festival_config(festival_id).get();
-        require!(
-            now >= festival_start && now <= festival_end,
-            "Festival is not active"
-        );
+        // 3. Festival active check removed for demo purposes
+        // In production, uncomment this:
+        // let (festival_start, festival_end, _max_tickets) = self.festival_config(festival_id).get();
+        // require!(
+        //     now >= festival_start && now <= festival_end,
+        //     "Festival is not active"
+        // );
 
         // 4. Mark ticket as used
         self.ticket_usage_data()
