@@ -9,6 +9,13 @@ use multiversx_sc::codec::{TopDecode, TopEncode};
 const TICKET_TYPE_FULL: u8 = 0;
 const TICKET_TYPE_DAY: u8 = 1;
 
+// Badge types for attendance proof
+const BADGE_TYPE_FULL_PASS: u8 = 0;
+const BADGE_TYPE_DAY_PASS: u8 = 1;
+
+// Default resale price cap: 300% = 3x original price
+const DEFAULT_RESALE_MAX_MULTIPLIER: u64 = 300;
+
 #[multiversx_sc::contract]
 pub trait FestivalSmartContract {
     #[init]
@@ -77,6 +84,15 @@ pub trait FestivalSmartContract {
 
     #[storage_mapper("resaleInfo")]
     fn resale_info(&self, ticket_nonce: u64) -> SingleValueMapper<(ManagedAddress, u64, BigUint)>;
+
+    // Stores the original purchase price for each ticket (needed for resale price cap)
+    #[storage_mapper("ticketOriginalPrice")]
+    fn ticket_original_price(&self, ticket_nonce: u64) -> SingleValueMapper<BigUint>;
+
+    // Maximum resale price multiplier (stored as percentage, e.g., 300 = 3x original price)
+    // Default is 300 (3x)
+    #[storage_mapper("resaleMaxMultiplier")]
+    fn resale_max_multiplier(&self) -> SingleValueMapper<u64>;
 
     #[storage_mapper("ticketUsageData")]
     fn ticket_usage_data(&self) -> MapMapper<u64, (ManagedAddress, u64)>;
@@ -188,6 +204,7 @@ pub trait FestivalSmartContract {
         self.ticket_token_identifier().set(&token_identifier);
     }
 
+
     #[only_owner]
     #[endpoint(addProduct)]
     fn add_product(
@@ -213,6 +230,16 @@ pub trait FestivalSmartContract {
     #[endpoint(setEgldToUsdRate)]
     fn set_egld_to_usd_rate(&self, rate: BigUint) {
         self.egld_to_usd_rate().set(rate);
+    }
+
+    /// Set the maximum resale price multiplier (as percentage)
+    /// Example: 300 = 3x original price, 150 = 1.5x original price
+    /// Default is 300 (3x) if not set
+    #[only_owner]
+    #[endpoint(setResaleMaxMultiplier)]
+    fn set_resale_max_multiplier(&self, multiplier: u64) {
+        require!(multiplier >= 100, "Multiplier must be at least 100 (1x)");
+        self.resale_max_multiplier().set(multiplier);
     }
 
     #[payable("EGLD")]
@@ -354,6 +381,9 @@ pub trait FestivalSmartContract {
         self.send()
             .direct_esdt(&caller, &token_identifier, new_nonce, &BigUint::from(1u64));
 
+        // Store original price for resale price cap enforcement
+        self.ticket_original_price(new_nonce).set(&found_price);
+
         self.festival_state(festival_id).set((sold + 1, inside));
         self.ticket_bought_event(&caller, festival_id, new_nonce);
     }
@@ -374,54 +404,109 @@ pub trait FestivalSmartContract {
         self.participant_created_event(&caller, &username);
     }
 
-    #[only_owner]
+    /// User-callable check-in: user sends their ticket, receives a badge NFT
+    /// This follows the flow:
+    /// 1. User sends ticket to contract
+    /// 2. Contract validates ticket (not used, valid festival)
+    /// 3. Contract marks ticket as used
+    /// 4. Contract mints badge NFT and sends it to user
+    #[payable("*")]
     #[endpoint(checkIn)]
-    fn check_in(&self, user_address: ManagedAddress, ticket_nonce: u64) {
+    fn check_in(&self) {
+        let (payment_token, payment_nonce, payment_amount) =
+            self.call_value().single_esdt().clone().into_tuple();
+
+        let ticket_token = self.ticket_token_identifier().get();
+        require!(payment_token == ticket_token, "Must send a valid ticket");
+        require!(payment_amount == 1, "Must send exactly 1 ticket");
+
+        let caller = self.blockchain().get_caller();
         let now = self.blockchain().get_block_timestamp();
-        let token_identifier = self.ticket_token_identifier().get();
 
-        // 1. Verify ownership
-        let balance =
-            self.blockchain()
-                .get_esdt_balance(&user_address, &token_identifier, ticket_nonce);
-        require!(balance == 1, "Ticket not owned by this user");
-
-        // 2. Get token data and attributes
-        let token_data =
-            self.blockchain()
-                .get_esdt_token_data(&user_address, &token_identifier, ticket_nonce);
+        // 1. Get ticket attributes (type and festival_id)
+        let token_data = self.blockchain().get_esdt_token_data(
+            &self.blockchain().get_sc_address(),
+            &payment_token,
+            payment_nonce,
+        );
 
         let attributes: (u8, u64) = TopDecode::top_decode(token_data.attributes).unwrap();
         let (ticket_type, festival_id) = attributes;
 
-        // 3. Check and update usage data
-        if !self.ticket_usage_data().contains_key(&ticket_nonce) {
-            self.ticket_usage_data()
-                .insert(ticket_nonce, (user_address.clone(), now));
-        } else {
-            let (first_user, first_check_in_time) =
-                self.ticket_usage_data().get(&ticket_nonce).unwrap();
-            require!(
-                user_address == first_user,
-                "Ticket is bound to another user"
-            );
+        // 2. Verify ticket hasn't been used before (first-time check-in)
+        require!(
+            !self.ticket_usage_data().contains_key(&payment_nonce),
+            "Ticket has already been used for check-in"
+        );
 
-            if ticket_type == TICKET_TYPE_DAY {
-                require!(
-                    now < first_check_in_time + 24 * 3600,
-                    "24-hour pass has expired"
-                );
-            }
-        }
+        // 3. Verify festival is active
+        let (festival_start, festival_end, _max_tickets) = self.festival_config(festival_id).get();
+        require!(
+            now >= festival_start && now <= festival_end,
+            "Festival is not active"
+        );
 
-        // 4. Update user time data
-        let (_last_check_in, total_time) = self.user_time_data(&user_address).get();
-        self.user_time_data(&user_address)
-            .set((self.blockchain().get_block_timestamp(), total_time));
+        // 4. Mark ticket as used
+        self.ticket_usage_data()
+            .insert(payment_nonce, (caller.clone(), now));
 
-        // 5. Update festival state
+        // 5. Update user time data for check-in
+        let (_last_check_in, total_time) = self.user_time_data(&caller).get();
+        self.user_time_data(&caller).set((now, total_time));
+
+        // 6. Update festival state (increment people inside)
         let (sold, inside) = self.festival_state(festival_id).get();
         self.festival_state(festival_id).set((sold, inside + 1));
+
+        // 7. Mint and send badge NFT to user (using same collection as tickets)
+        let badge_token = self.ticket_token_identifier().get();
+
+        let badge_type = if ticket_type == TICKET_TYPE_FULL {
+            BADGE_TYPE_FULL_PASS
+        } else {
+            BADGE_TYPE_DAY_PASS
+        };
+
+        // Create badge attributes
+        let mut badge_attributes_buffer = ManagedBuffer::new();
+        let badge_attributes = (badge_type, festival_id, now); // type, festival, check-in timestamp
+        badge_attributes.top_encode(&mut badge_attributes_buffer).unwrap();
+
+        // Create badge name
+        let festival_name = self.festival_name(festival_id).get();
+        let badge_type_str = if badge_type == BADGE_TYPE_FULL_PASS {
+            ManagedBuffer::from("Full Pass Badge")
+        } else {
+            ManagedBuffer::from("Day Pass Badge")
+        };
+
+        let mut badge_name = festival_name;
+        badge_name.append(&ManagedBuffer::from(" - "));
+        badge_name.append(&badge_type_str);
+
+        // Create badge URIs
+        let mut uris = ManagedVec::new();
+        uris.push(ManagedBuffer::new_from_bytes(
+            b"https://myfestival.com/badge.json",
+        ));
+
+        // Mint badge NFT
+        let badge_nonce = self.send().esdt_nft_create(
+            &badge_token,
+            &BigUint::from(1u64),
+            &badge_name,
+            &BigUint::zero(),
+            &ManagedBuffer::new(),
+            &badge_attributes_buffer,
+            &uris,
+        );
+
+        // Send badge to user
+        self.send()
+            .direct_esdt(&caller, &badge_token, badge_nonce, &BigUint::from(1u64));
+
+        // 8. Emit check-in event
+        self.check_in_event(&caller, festival_id, payment_nonce, badge_nonce);
     }
 
     #[only_owner]
@@ -507,6 +592,27 @@ pub trait FestivalSmartContract {
             "Cannot sell a ticket that has been used"
         );
 
+        // Validate resale price doesn't exceed maximum allowed
+        let original_price = self.ticket_original_price(payment_nonce).get();
+        require!(
+            original_price > 0,
+            "Original price not found for this ticket"
+        );
+
+        // Get multiplier (default 3x if not set)
+        let multiplier = if self.resale_max_multiplier().is_empty() {
+            DEFAULT_RESALE_MAX_MULTIPLIER
+        } else {
+            self.resale_max_multiplier().get()
+        };
+
+        // Calculate max allowed price: original_price * multiplier / 100
+        let max_price = &original_price * multiplier / 100u64;
+        require!(
+            price <= max_price,
+            "Resale price exceeds maximum allowed (max 3x original price)"
+        );
+
         let caller = self.blockchain().get_caller();
 
         let token_data = self.blockchain().get_esdt_token_data(
@@ -572,6 +678,15 @@ pub trait FestivalSmartContract {
         &self,
         #[indexed] address: &ManagedAddress,
         #[indexed] username: &ManagedBuffer,
+    );
+
+    #[event("checkIn")]
+    fn check_in_event(
+        &self,
+        #[indexed] user: &ManagedAddress,
+        #[indexed] festival_id: u64,
+        #[indexed] ticket_nonce: u64,
+        #[indexed] badge_nonce: u64,
     );
 
     // ========================================================================
@@ -667,7 +782,6 @@ pub trait FestivalSmartContract {
     }
 
     #[view(getLeaderboard)]
-
     fn get_leaderboard(&self) -> MultiValueEncoded<(ManagedBuffer, u64, u64)> {
         let mut leaderboard = MultiValueEncoded::new();
 
@@ -682,5 +796,119 @@ pub trait FestivalSmartContract {
         }
 
         leaderboard
+    }
+
+    /// Check if a ticket is valid for check-in (owned by user and not used)
+    /// Returns: (is_valid, is_used, owner_if_used, check_in_time_if_used)
+    #[view(getTicketStatus)]
+    fn get_ticket_status(
+        &self,
+        user_address: ManagedAddress,
+        ticket_nonce: u64,
+    ) -> (bool, bool, ManagedAddress, u64) {
+        let ticket_token = self.ticket_token_identifier().get();
+
+        // Check ownership
+        let balance = self
+            .blockchain()
+            .get_esdt_balance(&user_address, &ticket_token, ticket_nonce);
+        let is_owned = balance == 1;
+
+        // Check if used
+        if self.ticket_usage_data().contains_key(&ticket_nonce) {
+            let (used_by, check_in_time) = self.ticket_usage_data().get(&ticket_nonce).unwrap();
+            return (false, true, used_by, check_in_time);
+        }
+
+        (is_owned, false, ManagedAddress::zero(), 0)
+    }
+
+    /// Get the resale max multiplier (as percentage, e.g., 300 = 3x)
+    #[view(getResaleMaxMultiplier)]
+    fn get_resale_max_multiplier(&self) -> u64 {
+        if self.resale_max_multiplier().is_empty() {
+            DEFAULT_RESALE_MAX_MULTIPLIER
+        } else {
+            self.resale_max_multiplier().get()
+        }
+    }
+
+    /// Get original purchase price for a ticket
+    #[view(getTicketOriginalPrice)]
+    fn get_ticket_original_price(&self, ticket_nonce: u64) -> BigUint {
+        self.ticket_original_price(ticket_nonce).get()
+    }
+
+    /// Get resale info for a ticket including max allowed price
+    /// Returns: (is_for_sale, seller, festival_id, asking_price, original_price, max_allowed_price)
+    #[view(getResaleInfo)]
+    fn get_resale_info(
+        &self,
+        ticket_nonce: u64,
+    ) -> (bool, ManagedAddress, u64, BigUint, BigUint, BigUint) {
+        if self.resale_info(ticket_nonce).is_empty() {
+            return (
+                false,
+                ManagedAddress::zero(),
+                0,
+                BigUint::zero(),
+                BigUint::zero(),
+                BigUint::zero(),
+            );
+        }
+
+        let (seller, festival_id, asking_price) = self.resale_info(ticket_nonce).get();
+        let original_price = self.ticket_original_price(ticket_nonce).get();
+        let multiplier = self.get_resale_max_multiplier();
+        let max_allowed_price = &original_price * multiplier / 100u64;
+
+        (
+            true,
+            seller,
+            festival_id,
+            asking_price,
+            original_price,
+            max_allowed_price,
+        )
+    }
+
+    /// Get all tickets currently for resale for a specific festival
+    /// Returns list of: (ticket_nonce, seller, asking_price, original_price)
+    #[view(getResaleTicketsForFestival)]
+    fn get_resale_tickets_for_festival(
+        &self,
+        festival_id: u64,
+    ) -> MultiValueEncoded<(u64, ManagedAddress, BigUint, BigUint)> {
+        let mut result = MultiValueEncoded::new();
+
+        // Note: This requires iterating through all possible nonces
+        // In production, you might want a separate set mapper to track resale nonces
+        let token = self.ticket_token_identifier().get();
+        let sc_address = self.blockchain().get_sc_address();
+
+        // Get the total NFT count from token data (checking nonces 1 to some reasonable max)
+        // For now, we'll check nonces up to sold tickets count across all festivals
+        let festival_count = self.festival_count().get();
+        let mut max_nonce = 0u64;
+        for fid in 1..=festival_count {
+            let (sold, _) = self.festival_state(fid).get();
+            max_nonce += sold;
+        }
+
+        for nonce in 1..=max_nonce {
+            if !self.resale_info(nonce).is_empty() {
+                let (seller, fid, price) = self.resale_info(nonce).get();
+                if fid == festival_id {
+                    // Verify contract still holds this ticket
+                    let balance = self.blockchain().get_esdt_balance(&sc_address, &token, nonce);
+                    if balance == 1 {
+                        let original_price = self.ticket_original_price(nonce).get();
+                        result.push((nonce, seller, price, original_price));
+                    }
+                }
+            }
+        }
+
+        result
     }
 }
