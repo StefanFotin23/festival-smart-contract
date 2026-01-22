@@ -203,6 +203,93 @@ where
             .original_result()
     }
 
+    pub fn add_product<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<u64>,
+        Arg2: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg3: ProxyArg<BigUint<Env::Api>>,
+        Arg4: ProxyArg<ManagedBuffer<Env::Api>>,
+        Arg5: ProxyArg<ManagedBuffer<Env::Api>>,
+    >(
+        self,
+        festival_id: Arg0,
+        product_id: Arg1,
+        name: Arg2,
+        price: Arg3,
+        description: Arg4,
+        image_url: Arg5,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("addProduct")
+            .argument(&festival_id)
+            .argument(&product_id)
+            .argument(&name)
+            .argument(&price)
+            .argument(&description)
+            .argument(&image_url)
+            .original_result()
+    }
+
+    pub fn set_bonus_percentage<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        percentage: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("setBonusPercentage")
+            .argument(&percentage)
+            .original_result()
+    }
+
+    pub fn set_egld_to_usd_rate<
+        Arg0: ProxyArg<BigUint<Env::Api>>,
+    >(
+        self,
+        rate: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("setEgldToUsdRate")
+            .argument(&rate)
+            .original_result()
+    }
+
+    pub fn add_funds<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
+        self.wrapped_tx
+            .raw_call("addFunds")
+            .argument(&festival_id)
+            .original_result()
+    }
+
+    pub fn buy_product<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<u64>,
+        Arg2: ProxyArg<u64>,
+        Arg3: ProxyArg<bool>,
+    >(
+        self,
+        festival_id: Arg0,
+        product_id: Arg1,
+        quantity: Arg2,
+        pay_with_bracelet: Arg3,
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
+        self.wrapped_tx
+            .raw_call("buyProduct")
+            .argument(&festival_id)
+            .argument(&product_id)
+            .argument(&quantity)
+            .argument(&pay_with_bracelet)
+            .original_result()
+    }
+
     pub fn buy_ticket<
         Arg0: ProxyArg<u64>,
         Arg1: ProxyArg<ManagedBuffer<Env::Api>>,
@@ -315,6 +402,35 @@ where
             .payment(NotPayable)
             .raw_call("getTicketPrices")
             .argument(&festival_id)
+            .original_result()
+    }
+
+    pub fn get_products<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (u64, ManagedBuffer<Env::Api>, BigUint<Env::Api>, ManagedBuffer<Env::Api>, ManagedBuffer<Env::Api>)>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getProducts")
+            .argument(&festival_id)
+            .original_result()
+    }
+
+    pub fn get_bracelet_funds<
+        Arg0: ProxyArg<u64>,
+        Arg1: ProxyArg<ManagedAddress<Env::Api>>,
+    >(
+        self,
+        festival_id: Arg0,
+        user: Arg1,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, BigUint<Env::Api>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getBraceletFunds")
+            .argument(&festival_id)
+            .argument(&user)
             .original_result()
     }
 }

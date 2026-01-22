@@ -213,7 +213,7 @@ pub trait FestivalSmartContract {
         self.bracelet_funds(festival_id, &caller).update(|current_funds| *current_funds += funds_in_usd);
     }
 
-    #[payable("*")]
+    #[payable("EGLD")]
     #[endpoint(buyProduct)]
     fn buy_product(&self, festival_id: u64, product_id: u64, quantity: u64, pay_with_bracelet: bool) {
         let caller = self.blockchain().get_caller();
@@ -242,7 +242,7 @@ pub trait FestivalSmartContract {
             let rate = self.egld_to_usd_rate().get();
             require!(rate > 0, "EGLD to USD rate not set");
 
-            let payment_in_usd = payment * rate;
+            let payment_in_usd = payment * rate.clone();
             require!(payment_in_usd >= total_price, "Incorrect payment amount");
 
             if payment_in_usd > total_price {
@@ -337,7 +337,7 @@ pub trait FestivalSmartContract {
         self.participant_created_event(&caller, &username);
     }
 
-    #[payable("*")]
+    #[payable("EGLD")]
     #[endpoint(checkIn)]
     fn check_in(&self) {
         let (payment_token, payment_nonce, payment_amount) = self.call_value().single_esdt().clone().into_tuple();
@@ -436,7 +436,7 @@ pub trait FestivalSmartContract {
         self.claimed_flash_events(&caller).insert(unique_id);
     }
 
-    #[payable("*")]
+    #[payable("EGLD")]
     #[endpoint(putTicketForSale)]
     fn put_ticket_for_sale(&self, price: BigUint) {
         let (payment_token, payment_nonce, payment_amount) = self.call_value().single_esdt().clone().into_tuple();
