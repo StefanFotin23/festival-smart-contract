@@ -127,6 +127,16 @@ pub trait FestivalSmartContract {
         start_time: u64,
         end_time: u64,
     ) {
+        let (festival_start, festival_end, _max_tickets) = self.festival_config(festival_id).get();
+        require!(
+            start_time >= festival_start,
+            "Event cannot start before the festival"
+        );
+        require!(
+            end_time <= festival_end,
+            "Event cannot end after the festival"
+        );
+
         self.events(festival_id).push(&(name, location, start_time, end_time));
     }
 
@@ -337,35 +347,32 @@ pub trait FestivalSmartContract {
         self.participant_created_event(&caller, &username);
     }
 
-    #[payable("EGLD")]
+    #[only_owner]
     #[endpoint(checkIn)]
-    fn check_in(&self) {
-        let (payment_token, payment_nonce, payment_amount) = self.call_value().single_esdt().clone().into_tuple();
-        let caller = self.blockchain().get_caller();
+    fn check_in(&self, user_address: ManagedAddress, ticket_nonce: u64) {
         let now = self.blockchain().get_block_timestamp();
+        let token_identifier = self.ticket_token_identifier().get();
 
-        require!(
-            payment_token == self.ticket_token_identifier().get(),
-            "Must send a valid ticket"
-        );
-        require!(payment_amount == 1, "Must send exactly 1 ticket");
+        // 1. Verify ownership
+        let balance = self.blockchain().get_esdt_balance(&user_address, &token_identifier, ticket_nonce);
+        require!(balance == 1, "Ticket not owned by this user");
         
+        // 2. Get token data and attributes
         let token_data = self.blockchain().get_esdt_token_data(
-            &self.blockchain().get_sc_address(),
-            &payment_token,
-            payment_nonce,
+            &user_address,
+            &token_identifier,
+            ticket_nonce,
         );
         
-        // We use the static method from the TopDecode trait
-        // <(u8, u64)> is the type we want to decode
         let attributes: (u8, u64) = TopDecode::top_decode(token_data.attributes).unwrap();
         let (ticket_type, festival_id) = attributes;
 
-        if !self.ticket_usage_data().contains_key(&payment_nonce) {
-            self.ticket_usage_data().insert(payment_nonce, (caller.clone(), now));
+        // 3. Check and update usage data
+        if !self.ticket_usage_data().contains_key(&ticket_nonce) {
+            self.ticket_usage_data().insert(ticket_nonce, (user_address.clone(), now));
         } else {
-            let (first_user, first_check_in_time) = self.ticket_usage_data().get(&payment_nonce).unwrap();
-            require!(caller == first_user, "Ticket is bound to another user");
+            let (first_user, first_check_in_time) = self.ticket_usage_data().get(&ticket_nonce).unwrap();
+            require!(user_address == first_user, "Ticket is bound to another user");
 
             if ticket_type == TICKET_TYPE_DAY {
                 require!(
@@ -375,21 +382,21 @@ pub trait FestivalSmartContract {
             }
         }
 
-        let (_last_check_in, total_time) = self.user_time_data(&caller).get();
-        self.user_time_data(&caller).set((self.blockchain().get_block_timestamp(), total_time));
+        // 4. Update user time data
+        let (_last_check_in, total_time) = self.user_time_data(&user_address).get();
+        self.user_time_data(&user_address).set((self.blockchain().get_block_timestamp(), total_time));
 
+        // 5. Update festival state
         let (sold, inside) = self.festival_state(festival_id).get();
         self.festival_state(festival_id).set((sold, inside + 1));
-
-        self.send().direct_esdt(&caller, &payment_token, payment_nonce, &payment_amount);
     }
 
+    #[only_owner]
     #[endpoint(checkOut)]
-    fn check_out(&self, festival_id: u64) {
-        let caller = self.blockchain().get_caller();
-        require!(self.user_list().contains(&caller), "You are not a participant");
+    fn check_out(&self, user_address: ManagedAddress, festival_id: u64) {
+        require!(self.user_list().contains(&user_address), "You are not a participant");
 
-        let (last_check_in, total_time) = self.user_time_data(&caller).get();
+        let (last_check_in, total_time) = self.user_time_data(&user_address).get();
         require!(last_check_in > 0, "Not checked in");
 
         let time_now = self.blockchain().get_block_timestamp();
@@ -397,13 +404,13 @@ pub trait FestivalSmartContract {
         let new_total_time = total_time + session_time;
 
         let hours_spent = new_total_time / 3600;
-        let current_score = self.user_score(&caller).get();
+        let current_score = self.user_score(&user_address).get();
 
         if hours_spent > current_score {
-            self.user_score(&caller).set(hours_spent);
+            self.user_score(&user_address).set(hours_spent);
         }
 
-        self.user_time_data(&caller).set((0, new_total_time));
+        self.user_time_data(&user_address).set((0, new_total_time));
 
         let (sold, inside) = self.festival_state(festival_id).get();
         if inside > 0 {
@@ -411,10 +418,10 @@ pub trait FestivalSmartContract {
         }
     }
 
+    #[only_owner]
     #[endpoint(claimFlashEventPoints)]
-    fn claim_flash_event_points(&self, festival_id: u64, flash_event_index: usize) {
-        let caller = self.blockchain().get_caller();
-        require!(self.user_list().contains(&caller), "You are not a participant");
+    fn claim_flash_event_points(&self, user_address: ManagedAddress, festival_id: u64, flash_event_index: usize) {
+        require!(self.user_list().contains(&user_address), "User is not a participant");
 
         let flash_event = self.flash_events(festival_id).get(flash_event_index);
         let (_name, start, end, bonus) = flash_event;
@@ -428,15 +435,15 @@ pub trait FestivalSmartContract {
         let unique_id = festival_id * 1_000_000 + (flash_event_index as u64);
 
         require!(
-            !self.claimed_flash_events(&caller).contains(&unique_id),
+            !self.claimed_flash_events(&user_address).contains(&unique_id),
             "Already claimed"
         );
 
-        self.user_score(&caller).update(|score| *score += bonus);
-        self.claimed_flash_events(&caller).insert(unique_id);
+        self.user_score(&user_address).update(|score| *score += bonus);
+        self.claimed_flash_events(&user_address).insert(unique_id);
     }
 
-    #[payable("EGLD")]
+    #[payable("*")]
     #[endpoint(putTicketForSale)]
     fn put_ticket_for_sale(&self, price: BigUint) {
         let (payment_token, payment_nonce, payment_amount) = self.call_value().single_esdt().clone().into_tuple();
@@ -544,8 +551,792 @@ pub trait FestivalSmartContract {
         products_result
     }
 
-    #[view(getBraceletFunds)]
-    fn get_bracelet_funds(&self, festival_id: u64, user: ManagedAddress) -> BigUint {
-        self.bracelet_funds(festival_id, &user).get()
-    }
-}
+        #[view(getBraceletFunds)]
+
+        fn get_bracelet_funds(&self, festival_id: u64, user: ManagedAddress) -> BigUint {
+
+            self.bracelet_funds(festival_id, &user).get()
+
+        }
+
+    
+
+            #[view(getAllFestivals)]
+
+    
+
+            fn get_all_festivals(&self) -> MultiValueEncoded<(u64, ManagedBuffer, u64, u64, u64, u64, u64)> {
+
+    
+
+                let mut festivals = MultiValueEncoded::new();
+
+    
+
+                let festival_count = self.festival_count().get();
+
+    
+
+                for id in 1..=festival_count {
+
+    
+
+                    let name = self.festival_name(id).get();
+
+    
+
+                    let (start, end, max) = self.festival_config(id).get();
+
+    
+
+                    let (sold, inside) = self.festival_state(id).get();
+
+    
+
+                    festivals.push((id, name, start, end, max, sold, inside));
+
+    
+
+                }
+
+    
+
+                festivals
+
+    
+
+            }
+
+    
+
+        
+
+    
+
+                #[view(getEventsForFestival)]
+
+    
+
+        
+
+    
+
+                fn get_events_for_festival(&self, festival_id: u64) -> MultiValueEncoded<(ManagedBuffer, ManagedBuffer, u64, u64)> {
+
+    
+
+        
+
+    
+
+                    let mut result = MultiValueEncoded::new();
+
+    
+
+        
+
+    
+
+                    for item in self.events(festival_id).iter() {
+
+    
+
+        
+
+    
+
+                        result.push(item);
+
+    
+
+        
+
+    
+
+                    }
+
+    
+
+        
+
+    
+
+                    result
+
+    
+
+        
+
+    
+
+                }
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                    #[view(getBonusPercentage)]
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                    fn get_bonus_percentage(&self) -> u64 {
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        self.bonus_percentage().get()
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                    }
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        #[view(getEgldToUsdRate)]
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        fn get_egld_to_usd_rate(&self) -> BigUint {
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                            self.egld_to_usd_rate().get()
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        }
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                    
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        #[view(getLeaderboard)]
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        fn get_leaderboard(&self) -> MultiValueEncoded<(ManagedBuffer, u64, u64)> {
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                            let mut leaderboard = MultiValueEncoded::new();
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                            for user_address in self.user_list().iter() {
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                                let username = self.user_name(&user_address).get();
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                                let score = self.user_score(&user_address).get();
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                                let (_last_check_in, total_time) = self.user_time_data(&user_address).get();
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                                leaderboard.push((username, score, total_time));
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                            }
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                            leaderboard
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                        }
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                    }
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                    
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
+
+                
+
+    
+
+        
+
+    
+
+            
+
+    
+
+        
+
+    
