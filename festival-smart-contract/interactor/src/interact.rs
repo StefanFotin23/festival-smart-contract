@@ -32,6 +32,7 @@ pub async fn festival_smart_contract_cli() {
         "addProduct" => interact.add_product().await,
         "setBonusPercentage" => interact.set_bonus_percentage().await,
         "setEgldToUsdRate" => interact.set_egld_to_usd_rate().await,
+        "setResaleMaxMultiplier" => interact.set_resale_max_multiplier().await,
         "addFunds" => interact.add_funds().await,
         "buyProduct" => interact.buy_product().await,
         "buyTicket" => interact.buy_ticket().await,
@@ -50,6 +51,11 @@ pub async fn festival_smart_contract_cli() {
         "getBonusPercentage" => interact.get_bonus_percentage().await,
         "getEgldToUsdRate" => interact.get_egld_to_usd_rate().await,
         "getLeaderboard" => interact.get_leaderboard().await,
+        "getTicketStatus" => interact.get_ticket_status().await,
+        "getResaleMaxMultiplier" => interact.get_resale_max_multiplier().await,
+        "getTicketOriginalPrice" => interact.get_ticket_original_price().await,
+        "getResaleInfo" => interact.get_resale_info().await,
+        "getResaleTicketsForFestival" => interact.get_resale_tickets_for_festival().await,
         _ => panic!("unknown command: {}", &cmd),
     }
 }
@@ -330,6 +336,24 @@ impl ContractInteract {
         println!("Result: {response:?}");
     }
 
+    pub async fn set_resale_max_multiplier(&mut self) {
+        let multiplier = 0u64;
+
+        let response = self
+            .interactor
+            .tx()
+            .from(&self.wallet_address)
+            .to(self.state.current_address())
+            .gas(100_000_000u64)
+            .typed(proxy::FestivalSmartContractProxy)
+            .set_resale_max_multiplier(multiplier)
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {response:?}");
+    }
+
     pub async fn add_funds(&mut self) {
         let egld_amount = BigUint::<StaticApi>::from(0u128);
 
@@ -416,8 +440,9 @@ impl ContractInteract {
     }
 
     pub async fn check_in(&mut self) {
-        let user_address = ManagedAddress::<StaticApi>::zero();
-        let ticket_nonce = 0u64;
+        let token_id = String::new();
+        let token_nonce = 0u64;
+        let token_amount = BigUint::<StaticApi>::from(0u128);
 
         let response = self
             .interactor
@@ -426,7 +451,8 @@ impl ContractInteract {
             .to(self.state.current_address())
             .gas(100_000_000u64)
             .typed(proxy::FestivalSmartContractProxy)
-            .check_in(user_address, ticket_nonce)
+            .check_in()
+            .payment((TokenIdentifier::from(token_id.as_str()), token_nonce, token_amount))
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;
@@ -647,6 +673,85 @@ impl ContractInteract {
             .to(self.state.current_address())
             .typed(proxy::FestivalSmartContractProxy)
             .get_leaderboard()
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_ticket_status(&mut self) {
+        let user_address = ManagedAddress::<StaticApi>::zero();
+        let ticket_nonce = 0u64;
+
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_ticket_status(user_address, ticket_nonce)
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_resale_max_multiplier(&mut self) {
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_resale_max_multiplier()
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_ticket_original_price(&mut self) {
+        let ticket_nonce = 0u64;
+
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_ticket_original_price(ticket_nonce)
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_resale_info(&mut self) {
+        let ticket_nonce = 0u64;
+
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_resale_info(ticket_nonce)
+            .returns(ReturnsResultUnmanaged)
+            .run()
+            .await;
+
+        println!("Result: {result_value:?}");
+    }
+
+    pub async fn get_resale_tickets_for_festival(&mut self) {
+        let festival_id = 0u64;
+
+        let result_value = self
+            .interactor
+            .query()
+            .to(self.state.current_address())
+            .typed(proxy::FestivalSmartContractProxy)
+            .get_resale_tickets_for_festival(festival_id)
             .returns(ReturnsResultUnmanaged)
             .run()
             .await;

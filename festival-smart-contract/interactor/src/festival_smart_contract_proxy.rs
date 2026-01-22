@@ -257,6 +257,22 @@ where
             .original_result()
     }
 
+    /// Set the maximum resale price multiplier (as percentage) 
+    /// Example: 300 = 3x original price, 150 = 1.5x original price 
+    /// Default is 300 (3x) if not set 
+    pub fn set_resale_max_multiplier<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        multiplier: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("setResaleMaxMultiplier")
+            .argument(&multiplier)
+            .original_result()
+    }
+
     pub fn add_funds<
         Arg0: ProxyArg<u64>,
     >(
@@ -318,19 +334,17 @@ where
             .original_result()
     }
 
-    pub fn check_in<
-        Arg0: ProxyArg<ManagedAddress<Env::Api>>,
-        Arg1: ProxyArg<u64>,
-    >(
+    /// User-callable check-in: user sends their ticket, receives a badge NFT 
+    /// This follows the flow: 
+    /// 1. User sends ticket to contract 
+    /// 2. Contract validates ticket (not used, valid festival) 
+    /// 3. Contract marks ticket as used 
+    /// 4. Contract mints badge NFT and sends it to user 
+    pub fn check_in(
         self,
-        user_address: Arg0,
-        ticket_nonce: Arg1,
-    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, ()> {
+    ) -> TxTypedCall<Env, From, To, (), Gas, ()> {
         self.wrapped_tx
-            .payment(NotPayable)
             .raw_call("checkIn")
-            .argument(&user_address)
-            .argument(&ticket_nonce)
             .original_result()
     }
 
@@ -398,7 +412,7 @@ where
     >(
         self,
         id: Arg0,
-    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, (ManagedBuffer<Env::Api>, u64, u64, u64, u64, u64)> {
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, (u64, ManagedBuffer<Env::Api>, u64, u64, u64, u64, u64)> {
         self.wrapped_tx
             .payment(NotPayable)
             .raw_call("getFestivalData")
@@ -494,6 +508,78 @@ where
         self.wrapped_tx
             .payment(NotPayable)
             .raw_call("getLeaderboard")
+            .original_result()
+    }
+
+    /// Check if a ticket is valid for check-in (owned by user and not used) 
+    /// Returns: (is_valid, is_used, owner_if_used, check_in_time_if_used) 
+    pub fn get_ticket_status<
+        Arg0: ProxyArg<ManagedAddress<Env::Api>>,
+        Arg1: ProxyArg<u64>,
+    >(
+        self,
+        user_address: Arg0,
+        ticket_nonce: Arg1,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, (bool, bool, ManagedAddress<Env::Api>, u64)> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getTicketStatus")
+            .argument(&user_address)
+            .argument(&ticket_nonce)
+            .original_result()
+    }
+
+    /// Get the resale max multiplier (as percentage, e.g., 300 = 3x) 
+    pub fn get_resale_max_multiplier(
+        self,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, u64> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getResaleMaxMultiplier")
+            .original_result()
+    }
+
+    /// Get original purchase price for a ticket 
+    pub fn get_ticket_original_price<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        ticket_nonce: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, BigUint<Env::Api>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getTicketOriginalPrice")
+            .argument(&ticket_nonce)
+            .original_result()
+    }
+
+    /// Get resale info for a ticket including max allowed price 
+    /// Returns: (is_for_sale, seller, festival_id, asking_price, original_price, max_allowed_price) 
+    pub fn get_resale_info<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        ticket_nonce: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, (bool, ManagedAddress<Env::Api>, u64, BigUint<Env::Api>, BigUint<Env::Api>, BigUint<Env::Api>)> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getResaleInfo")
+            .argument(&ticket_nonce)
+            .original_result()
+    }
+
+    /// Get all tickets currently for resale for a specific festival 
+    /// Returns list of: (ticket_nonce, seller, asking_price, original_price) 
+    pub fn get_resale_tickets_for_festival<
+        Arg0: ProxyArg<u64>,
+    >(
+        self,
+        festival_id: Arg0,
+    ) -> TxTypedCall<Env, From, To, NotPayable, Gas, MultiValueEncoded<Env::Api, (u64, ManagedAddress<Env::Api>, BigUint<Env::Api>, BigUint<Env::Api>)>> {
+        self.wrapped_tx
+            .payment(NotPayable)
+            .raw_call("getResaleTicketsForFestival")
+            .argument(&festival_id)
             .original_result()
     }
 }

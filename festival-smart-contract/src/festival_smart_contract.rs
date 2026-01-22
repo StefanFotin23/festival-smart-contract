@@ -127,7 +127,7 @@ pub trait FestivalSmartContract {
         max_tickets: u64,
         tax_normal: u8,
         tax_sold_out: u8,
-    ) {
+    ) -> u64 {
         let new_id = self.festival_count().get() + 1;
         self.festival_count().set(new_id);
 
@@ -136,6 +136,8 @@ pub trait FestivalSmartContract {
             .set((start_time, end_time, max_tickets));
         self.festival_state(new_id).set((0, 0));
         self.festival_tax(new_id).set((tax_normal, tax_sold_out));
+
+        new_id
     }
 
     #[only_owner]
@@ -693,15 +695,14 @@ pub trait FestivalSmartContract {
     // VIEWS
     // ========================================================================
 
-    #[view(getFestivalData)]
-    fn get_festival_data(&self, id: u64) -> (ManagedBuffer, u64, u64, u64, u64, u64) {
-        let name = self.festival_name(id).get();
-        let (start, end, max) = self.festival_config(id).get();
-        let (sold, inside) = self.festival_state(id).get();
-
-        (name, start, end, max, sold, inside)
-    }
-
+        #[view(getFestivalData)]
+        fn get_festival_data(&self, id: u64) -> (u64, ManagedBuffer, u64, u64, u64, u64, u64) {
+            let name = self.festival_name(id).get();
+            let (start, end, max) = self.festival_config(id).get();
+            let (sold, inside) = self.festival_state(id).get();
+            
+            (id, name, start, end, max, sold, inside)
+        }
     #[view(getTicketPrices)]
     fn get_ticket_prices_view(
         &self,
