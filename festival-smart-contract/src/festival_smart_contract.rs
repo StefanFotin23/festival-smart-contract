@@ -756,7 +756,6 @@ pub trait FestivalSmartContract {
     }
 
     #[view(getEventsForFestival)]
-
     fn get_events_for_festival(
         &self,
         festival_id: u64,
